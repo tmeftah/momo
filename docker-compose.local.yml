@@ -1,0 +1,18 @@
+# Local test without Traefik: http://localhost:3000
+#   docker compose -f docker-compose.local.yml up --build
+name: vae-manager-local
+
+services:
+  vae-manager:
+    build: .
+    image: vae-manager:latest
+    environment:
+      INITIAL_PIN: ${INITIAL_PIN:-123456}
+      TZ: ${TZ:-Europe/Paris}
+    ports:
+      - "3000:3000"
+    volumes:
+      - vae-data-local:/data
+
+volumes:
+  vae-data-local:

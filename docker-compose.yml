@@ -1,0 +1,39 @@
+# Production: behind an existing Traefik instance on the VPS.
+#   cp .env.example .env   # then edit DOMAIN, INITIAL_PIN, Traefik names
+#   docker compose up -d --build
+name: vae-manager
+
+services:
+  vae-manager:
+    build: .
+    image: vae-manager:latest
+    container_name: vae-manager
+    restart: unless-stopped
+    environment:
+      INITIAL_PIN: ${INITIAL_PIN:?Set INITIAL_PIN in .env}
+      TZ: ${TZ:-Europe/Paris}
+      SESSION_DAYS: ${SESSION_DAYS:-30}
+      BACKUP_KEEP: ${BACKUP_KEEP:-14}
+    volumes:
+      - vae-data:/data
+    networks:
+      - traefik
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK:-traefik}
+      - traefik.http.routers.vae-manager.rule=Host(`${DOMAIN:?Set DOMAIN in .env}`)
+      - traefik.http.routers.vae-manager.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}
+      - traefik.http.routers.vae-manager.tls=true
+      - traefik.http.routers.vae-manager.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}
+      - traefik.http.services.vae-manager.loadbalancer.server.port=3000
+      # Optional extra lock: only allow your own IPs (uncomment and adjust)
+      # - traefik.http.middlewares.vae-ipallow.ipallowlist.sourcerange=1.2.3.4/32
+      # - traefik.http.routers.vae-manager.middlewares=vae-ipallow
+
+volumes:
+  vae-data:
+
+networks:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK:-traefik}
