@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onActivated } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Plus, Receipt, Wallet, ShoppingCart, Trash2, NotebookPen } from 'lucide-vue-next';
+import { Plus, Receipt, Wallet, ShoppingCart, Trash2, NotebookPen, Package, Nut } from 'lucide-vue-next';
 import { api, fileUrl } from '../api.js';
 import { money, fmtNum, round2 } from '../store.js';
 import { toast, toastError, confirmAction, haptic } from '../ui.js';
@@ -91,7 +91,7 @@ async function submit(payment) {
       <ListGroup :header="`Panier · ${fmtNum(count)} article(s)`">
         <div v-for="(l, i) in cart" :key="l.key" class="cell has-thumb" style="align-items: flex-start; padding-top: 12px; padding-bottom: 12px">
           <img v-if="l.photo" class="thumb" :src="fileUrl(l.photo)" alt="" />
-          <span v-else class="thumb">{{ l.item_id ? '📦' : '🔩' }}</span>
+          <span v-else class="thumb"><component :is="l.item_id ? Package : Nut" :size="22" :stroke-width="1.8" /></span>
           <div class="cell-main" style="gap: 8px">
             <div class="hstack between" style="align-items: flex-start">
               <div class="grow">
@@ -110,7 +110,7 @@ async function submit(payment) {
             </div>
           </div>
         </div>
-        <ListRow :icon="Plus" tile="blue" title="Ajouter un article" action @click="picking = true" />
+        <ListRow :icon="Plus" tile="accent" title="Ajouter un article" action @click="picking = true" />
       </ListGroup>
 
       <ListGroup header="Client">

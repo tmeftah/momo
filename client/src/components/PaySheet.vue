@@ -71,7 +71,7 @@ function confirm() {
       <div class="hstack between">
         <span>Reste à payer</span>
         <span class="bold num" :class="tooMuch ? 'c-red' : remaining > 0 ? 'c-orange' : 'c-green'">
-          {{ tooMuch ? 'Montant trop élevé' : remaining > 0 ? `${money(remaining)} en crédit` : 'Payé ✓' }}
+          {{ tooMuch ? 'Montant trop élevé' : remaining > 0 ? `${money(remaining)} en crédit` : 'Payé' }}
         </span>
       </div>
     </div>

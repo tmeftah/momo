@@ -80,7 +80,7 @@ async function remove() {
           <div class="w-sub">minimum {{ fmtNum(item.min_stock) }}</div>
         </div>
         <div class="widget" style="min-height: 96px">
-          <div class="w-head" style="color: color-mix(in srgb, var(--yellow) 85%, var(--label))">Prix de vente</div>
+          <div class="w-head">Prix de vente</div>
           <div class="w-value" style="font-size: 26px">{{ money(item.sale_price) }}</div>
           <div class="w-sub">marge {{ money(margin) }}<template v-if="marginPct !== null"> · {{ marginPct }} %</template></div>
         </div>
@@ -102,7 +102,7 @@ async function remove() {
         <ListRow v-if="item.power" title="Puissance" :value="item.power" />
         <ListRow v-if="item.location" title="Emplacement" :value="item.location" />
         <ListRow title="Prix d'achat" :value="money(item.purchase_price)" />
-        <ListRow v-if="item.vehicle_types" title="Compatible" :value="item.vehicle_types.split(',').map((v) => VEHICLE[v]?.emoji + ' ' + (VEHICLE[v]?.short || v)).join('  ')" />
+        <ListRow v-if="item.vehicle_types" title="Compatible" :value="item.vehicle_types.split(',').map((v) => VEHICLE[v]?.short || v).join(', ')" />
         <ListRow v-if="item.supplier_name" :to="`/fournisseurs/${item.supplier_id}`" title="Fournisseur" :value="item.supplier_name" />
         <div v-if="item.notes" class="cell text-cell" style="display: block"><span class="t-label">Notes techniques</span>{{ item.notes }}</div>
       </ListGroup>

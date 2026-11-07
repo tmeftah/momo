@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Phone, MessageCircle, PackagePlus, Pencil } from 'lucide-vue-next';
+import { Phone, MessageCircle, PackagePlus, Pencil, Package } from 'lucide-vue-next';
 import { api } from '../api.js';
 import { money, fmtNum, fmtDate, waLink, telLink } from '../store.js';
 import { toast, toastError, confirmAction } from '../ui.js';
@@ -67,10 +67,10 @@ async function remove() {
       </ListGroup>
 
       <ListGroup header="Achats">
-        <ListRow v-for="p in s.purchases" :key="p.id" :to="`/achats/${p.id}`" emoji="📦" tile="soft" :title="p.summary" :subtitle="`#${p.id}${p.reference ? ' · ' + p.reference : ''} · ${fmtDate(p.created_at)}`" :chevron="false">
+        <ListRow v-for="p in s.purchases" :key="p.id" :to="`/achats/${p.id}`" :icon="Package" tile="soft" :title="p.summary" :subtitle="`#${p.id}${p.reference ? ' · ' + p.reference : ''} · ${fmtDate(p.created_at)}`" :chevron="false">
           <template #trailing><span class="bold num">{{ money(p.total) }}</span></template>
         </ListRow>
-        <ListRow :to="`/achats/nouveau?supplier_id=${id}`" :icon="PackagePlus" tile="green" title="Nouvel achat" action />
+        <ListRow :to="`/achats/nouveau?supplier_id=${id}`" :icon="PackagePlus" tile="accent" title="Nouvel achat" action />
       </ListGroup>
 
       <ListGroup v-if="s.items.length" header="Articles de ce fournisseur">

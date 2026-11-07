@@ -301,7 +301,8 @@ input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; marg
 }
 .tile.lg { width: 44px; height: 44px; border-radius: 11px; font-size: 24px; }
 .tile.xl { width: 72px; height: 72px; border-radius: 18px; font-size: 40px; }
-.tile.soft { background: var(--fill-2) !important; }
+.tile.soft { background: var(--fill-2) !important; color: var(--label-2); }
+.bg-accent { background: color-mix(in srgb, var(--tint) 14%, transparent); color: var(--tint); }
 .bg-blue { background: var(--blue); }
 .bg-yellow { background: var(--yellow); color: var(--on-yellow); }
 .bg-green { background: var(--green); }
@@ -375,8 +376,8 @@ input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; marg
 .quick { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-top: 4px; }
 .quick a { display: flex; flex-direction: column; align-items: center; gap: 7px; color: var(--label); font-size: 12px; font-weight: 500; text-align: center; line-height: 1.15; }
 .quick .q-icon {
-  width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; color: #fff;
-  box-shadow: 0 4px 14px color-mix(in srgb, currentColor 0%, transparent);
+  width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--cell); color: var(--tint);
   transition: transform 0.15s var(--ease);
 }
 .quick a:active .q-icon { transform: scale(0.9); }
@@ -391,13 +392,15 @@ input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; marg
   transition: transform 0.15s var(--ease), background 0.3s;
 }
 .widget:active { transform: scale(0.97); }
-.widget .w-head { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 650; }
+.widget .w-head { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--label-2); }
 .widget .w-value { font-size: 30px; font-weight: 750; letter-spacing: -0.03em; line-height: 1.05; margin-top: auto; font-variant-numeric: tabular-nums; }
 .widget .w-sub { font-size: 13px; color: var(--label-2); }
+.widget .w-head.c-red { color: var(--red); }
+.widget .w-head.c-green { color: var(--green); }
+.widget .w-head.c-orange { color: var(--orange); }
 .widget.span2 { grid-column: span 2; }
 .widget.hero-w { min-height: 132px; }
 .widget.hero-w .w-value { font-size: 40px; }
-.widget .w-glow { position: absolute; right: -30px; top: -30px; width: 120px; height: 120px; border-radius: 50%; opacity: 0.18; filter: blur(24px); }
 
 /* ---------- Hero (detail pages) ---------- */
 .hero { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 6px 0 2px; }
@@ -651,7 +654,7 @@ input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; marg
 }
 
 /* ---------- Login (passcode) ---------- */
-.passcode { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: calc(var(--safe-t) + 24px) 24px calc(var(--safe-b) + 24px); background: radial-gradient(120% 70% at 50% 0%, color-mix(in srgb, var(--tint) 22%, var(--bg)) 0%, var(--bg) 60%); }
+.passcode { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: calc(var(--safe-t) + 24px) 24px calc(var(--safe-b) + 24px); background: var(--bg); }
 .passcode .dots { display: flex; gap: 18px; margin: 22px 0 36px; height: 14px; }
 .passcode .dots i { width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid var(--label); transition: background 0.12s; }
 .passcode .dots i.on { background: var(--label); }

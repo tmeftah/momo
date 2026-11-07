@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Plus, Trash2 } from 'lucide-vue-next';
+import { Plus, Trash2, Package } from 'lucide-vue-next';
 import { api, fileUrl } from '../api.js';
 import { money, fmtNum } from '../store.js';
 import { toast, toastError, haptic } from '../ui.js';
@@ -68,7 +68,7 @@ async function submit() {
     <ListGroup header="Articles reçus" footer="Article absent ? Créez-le d'abord dans le Stock.">
       <div v-for="(l, i) in lines" :key="l.item_id" class="cell has-thumb" style="align-items: flex-start; padding-top: 12px; padding-bottom: 12px">
         <img v-if="l.photo" class="thumb" :src="fileUrl(l.photo)" alt="" />
-        <span v-else class="thumb">📦</span>
+        <span v-else class="thumb"><Package :size="22" :stroke-width="1.8" /></span>
         <div class="cell-main" style="gap: 8px">
           <div class="hstack between" style="align-items: flex-start">
             <div class="grow">
@@ -87,7 +87,7 @@ async function submit() {
           </div>
         </div>
       </div>
-      <ListRow :icon="Plus" tile="blue" title="Ajouter un article" action @click="picking = true" />
+      <ListRow :icon="Plus" tile="accent" title="Ajouter un article" action @click="picking = true" />
     </ListGroup>
 
     <ListGroup v-if="lines.length">

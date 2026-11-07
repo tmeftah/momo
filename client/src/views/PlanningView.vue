@@ -1,9 +1,9 @@
 <script setup>
 import { ref, computed, onActivated } from 'vue';
-import { CalendarDays } from 'lucide-vue-next';
+import { CalendarDays, Activity } from 'lucide-vue-next';
 import { api } from '../api.js';
 import { PRIORITIES } from '../constants.js';
-import { fmtDate, fmtRelative, localToday, vehicleName, vehicleEmoji } from '../store.js';
+import { fmtDate, fmtRelative, localToday, vehicleName, vehicleIcon } from '../store.js';
 import { toastError } from '../ui.js';
 import NavBar from '../components/NavBar.vue';
 import ListGroup from '../components/ListGroup.vue';
@@ -63,7 +63,7 @@ const jump = (key) => document.getElementById(`col-${key}`)?.scrollIntoView({ be
       <ListGroup v-for="col in nonEmpty" :id="`col-${col.key}`" :key="col.key" :header="col.title" style="scroll-margin-top: 100px">
         <template #header-right><span class="num" style="text-transform: none; color: var(--label-2)">{{ col.items.length }}</span></template>
         <ListRow v-for="x in col.items" :key="x.id" :to="(col.diag ? '/diagnostics/' : '/reparations/') + x.id" style="--inset: 72px">
-          <template #leading><span class="thumb">{{ col.diag ? '⚡' : vehicleEmoji(x) }}</span></template>
+          <template #leading><span class="thumb"><component :is="col.diag ? Activity : vehicleIcon(x)" :size="22" :stroke-width="1.8" /></span></template>
           <div class="cell-title"><span v-if="x.priority === 'urgent'" class="c-red" style="font-weight: 800">! </span>{{ vehicleName(x) }}</div>
           <div class="cell-sub">{{ x.client_name || 'Sans client' }} · {{ fmtRelative(x.created_at) }}</div>
           <div v-if="x.due_date" class="cell-sub" :class="x.due_date < today ? 'c-red' : ''">Prévu {{ fmtDate(x.due_date) }}</div>

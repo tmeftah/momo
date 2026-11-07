@@ -125,25 +125,25 @@ const kb = (b) => (b > 1048576 ? `${(b / 1048576).toFixed(1)} Mo` : `${Math.roun
     </ListGroup>
 
     <ListGroup header="Application">
-      <ListRow v-if="pwa.updateReady" :icon="Sparkles" tile="blue" title="Installer la nouvelle version" @click="applyUpdate" />
-      <ListRow v-if="canInstall()" :icon="Smartphone" tile="blue" title="Installer sur l'écran d'accueil" chevron @click="openInstall" />
-      <ListRow v-else :icon="Smartphone" tile="green" title="Mode application" :value="pwa.standalone ? 'Installée' : 'Navigateur'" />
+      <ListRow v-if="pwa.updateReady" :icon="Sparkles" tile="accent" title="Installer la nouvelle version" @click="applyUpdate" />
+      <ListRow v-if="canInstall()" :icon="Smartphone" tile="accent" title="Installer sur l'écran d'accueil" chevron @click="openInstall" />
+      <ListRow v-else :icon="Smartphone" tile="accent" title="Mode application" :value="pwa.standalone ? 'Installée' : 'Navigateur'" />
     </ListGroup>
 
     <ListGroup header="Sécurité">
-      <ListRow :icon="KeyRound" tile="gray" title="Changer le code PIN" chevron @click="pinSheet = true" />
-      <ListRow :icon="Lock" tile="blue" title="Verrouiller maintenant" @click="lock" />
+      <ListRow :icon="KeyRound" tile="accent" title="Changer le code PIN" chevron @click="pinSheet = true" />
+      <ListRow :icon="Lock" tile="accent" title="Verrouiller maintenant" @click="lock" />
     </ListGroup>
 
     <ListGroup header="Sauvegarde" footer="Téléchargez régulièrement une sauvegarde complète et gardez-la hors du serveur.">
-      <ListRow href="/api/backup/export.zip" :icon="Download" tile="green" title="Sauvegarde complète" subtitle="Données + photos (.zip)" download />
-      <ListRow href="/api/backup/export.json" :icon="FileText" tile="orange" title="Exporter les données" subtitle="Format JSON lisible" download />
+      <ListRow href="/api/backup/export.zip" :icon="Download" tile="accent" title="Sauvegarde complète" subtitle="Données + photos (.zip)" download />
+      <ListRow href="/api/backup/export.json" :icon="FileText" tile="accent" title="Exporter les données" subtitle="Format JSON lisible" download />
       <ListRow :icon="ArchiveRestore" tile="red" :title="restoring ? 'Restauration…' : 'Restaurer une sauvegarde'" subtitle="Remplace toutes les données" @click="fileInput.click()" />
     </ListGroup>
     <input ref="fileInput" type="file" accept=".zip,application/zip" hidden @change="restore" />
 
     <ListGroup v-if="autoBackups.length" header="Copies automatiques quotidiennes">
-      <ListRow v-for="b in autoBackups" :key="b.name" :href="`/api/backup/auto/${b.name}`" :icon="Database" tile="gray" :title="b.name.replace('vae-', '').replace('.db', '')" :value="kb(b.size)" download />
+      <ListRow v-for="b in autoBackups" :key="b.name" :href="`/api/backup/auto/${b.name}`" :icon="Database" tile="accent" :title="b.name.replace('vae-', '').replace('.db', '')" :value="kb(b.size)" download />
     </ListGroup>
 
     <BottomSheet :open="pinSheet" title="Code PIN" action="OK" :action-disabled="!pins.current || pins.pin.length < 4" @close="pinSheet = false" @action="changePin">

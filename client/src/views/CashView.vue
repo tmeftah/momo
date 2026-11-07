@@ -56,33 +56,32 @@ watch([from, to], load);
     <template v-else>
       <div class="widgets mt">
         <div class="widget span2 hero-w">
-          <div class="w-glow" style="background: var(--green)" />
-          <div class="w-head" style="color: var(--green)">Recettes</div>
+          <div class="w-head">Recettes</div>
           <div class="w-value">{{ money(c.total) }}</div>
           <div class="w-sub">{{ c.payments.length }} paiement(s){{ c.from !== c.to ? ` · du ${fmtDate(c.from)} au ${fmtDate(c.to)}` : '' }}</div>
         </div>
         <div class="widget" style="min-height: 92px">
-          <div class="w-head" style="color: var(--green)"><Banknote :size="16" />Espèces</div>
+          <div class="w-head"><Banknote :size="16" />Espèces</div>
           <div class="w-value" style="font-size: 24px">{{ money(c.by_method.especes || 0) }}</div>
         </div>
         <div class="widget" style="min-height: 92px">
-          <div class="w-head" style="color: var(--teal)"><Repeat :size="16" />Échange</div>
+          <div class="w-head"><Repeat :size="16" />Échange</div>
           <div class="w-value" style="font-size: 24px">{{ money(c.by_method.echange || 0) }}</div>
         </div>
         <div class="widget" style="min-height: 92px">
-          <div class="w-head" style="color: var(--purple)"><Handshake :size="16" />Emprunt</div>
+          <div class="w-head"><Handshake :size="16" />Emprunt</div>
           <div class="w-value" style="font-size: 24px">{{ money(c.by_method.emprunt || 0) }}</div>
         </div>
         <a href="#credits" class="widget" style="min-height: 92px">
-          <div class="w-head" style="color: var(--orange)"><CreditCard :size="16" />Crédits en cours</div>
+          <div class="w-head" :class="{ 'c-orange': c.credits.total > 0 }"><CreditCard :size="16" />Crédits en cours</div>
           <div class="w-value" style="font-size: 24px">{{ money(c.credits.total) }}</div>
         </a>
       </div>
 
       <ListGroup header="Encaissé par origine">
-        <ListRow :icon="ShoppingCart" tile="yellow" title="Ventes" :value="money(c.by_type.sale || 0)" />
-        <ListRow :icon="Wrench" tile="blue" title="Réparations" :value="money(c.by_type.repair || 0)" />
-        <ListRow :icon="Activity" tile="teal" title="Diagnostics" :value="money(c.by_type.diagnostic || 0)" />
+        <ListRow :icon="ShoppingCart" tile="accent" title="Ventes" :value="money(c.by_type.sale || 0)" />
+        <ListRow :icon="Wrench" tile="accent" title="Réparations" :value="money(c.by_type.repair || 0)" />
+        <ListRow :icon="Activity" tile="accent" title="Diagnostics" :value="money(c.by_type.diagnostic || 0)" />
       </ListGroup>
 
       <ListGroup header="Activité et marges">
@@ -112,7 +111,7 @@ watch([from, to], load);
         >
           <template #trailing><div class="cell-trail"><span class="bold num c-orange">{{ money(d.balance) }}</span><span class="caption secondary">sur {{ money(d.total) }}</span></div></template>
         </ListRow>
-        <div v-if="!c.credits.items.length" class="cell secondary">Aucun crédit en cours 🎉</div>
+        <div v-if="!c.credits.items.length" class="cell secondary">Aucun crédit en cours</div>
       </ListGroup>
     </template>
   </div>

@@ -1,7 +1,7 @@
 <script setup>
 // Parts used in a repair. Changes hit the API immediately so the stock stays exact.
 import { ref, computed } from 'vue';
-import { Plus } from 'lucide-vue-next';
+import { Plus, Package, Nut } from 'lucide-vue-next';
 import { api } from '../api.js';
 import { money, fmtNum } from '../store.js';
 import { toast, toastError, confirmAction } from '../ui.js';
@@ -56,12 +56,12 @@ async function removeLine() {
 
 <template>
   <ListGroup header="Pièces utilisées">
-    <ListRow v-for="l in lines" :key="l.id" :thumb="l.photo || null" :thumb-icon="l.item_id ? '📦' : '🔩'" chevron @click="edit(l)">
+    <ListRow v-for="l in lines" :key="l.id" :thumb="l.photo || null" :thumb-icon="l.item_id ? Package : Nut" chevron @click="edit(l)">
       <div class="cell-title">{{ l.name }}</div>
       <div class="cell-sub">{{ fmtNum(l.qty) }} × {{ money(l.unit_price) }} · {{ l.item_id ? `reste ${fmtNum(l.stock_quantity)} en stock` : 'hors stock' }}</div>
       <template #trailing><span class="bold num">{{ money(l.qty * l.unit_price) }}</span></template>
     </ListRow>
-    <ListRow :icon="Plus" tile="blue" title="Ajouter une pièce" action @click="picking = true" />
+    <ListRow :icon="Plus" tile="accent" title="Ajouter une pièce" action @click="picking = true" />
     <template v-if="lines.length" #footer>
       <div class="hstack between"><span>Total pièces <b class="num" style="color: var(--label)">{{ money(total) }}</b></span><span>Marge {{ money(total - cost) }}</span></div>
     </template>

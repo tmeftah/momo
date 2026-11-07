@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch, onActivated } from 'vue';
-import { Plus, Receipt } from 'lucide-vue-next';
+import { Plus, Receipt, ShoppingCart } from 'lucide-vue-next';
 import { api } from '../api.js';
 import { money, fmtTime, dayLabel, groupBy, localToday } from '../store.js';
 import { toastError } from '../ui.js';
@@ -58,7 +58,7 @@ watch([period, q, unpaid], () => {
     <template v-else>
       <ListGroup v-for="d in days" :key="d.key" :header="dayLabel(d.items[0].created_at)">
         <template #header-right><span class="num" style="text-transform: none">{{ money(d.items.reduce((s, x) => s + x.total, 0)) }}</span></template>
-        <ListRow v-for="s in d.items" :key="s.id" :to="`/ventes/${s.id}`" emoji="🛒" tile="soft" :title="s.summary" :subtitle="`${s.client_name || 'Client de passage'} · ${fmtTime(s.created_at)}`" :chevron="false">
+        <ListRow v-for="s in d.items" :key="s.id" :to="`/ventes/${s.id}`" :icon="ShoppingCart" tile="soft" :title="s.summary" :subtitle="`${s.client_name || 'Client de passage'} · ${fmtTime(s.created_at)}`" :chevron="false">
           <template #trailing>
             <div class="cell-trail">
               <span class="bold num">{{ money(s.total) }}</span>

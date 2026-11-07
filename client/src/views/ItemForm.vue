@@ -25,7 +25,7 @@ const busy = ref(false);
 const margin = computed(() => (Number(form.sale_price) || 0) - (Number(form.purchase_price) || 0));
 const marginPct = computed(() => (form.purchase_price > 0 ? Math.round((margin.value / form.purchase_price) * 100) : null));
 const supplierOptions = computed(() => suppliers.value.map((s) => ({ value: s.id, label: s.name })));
-const vehicleOptions = VEHICLE_TYPES.filter((v) => v.value !== 'autre').map((v) => ({ value: v.value, label: v.short, icon: v.emoji }));
+const vehicleOptions = VEHICLE_TYPES.filter((v) => v.value !== 'autre').map((v) => ({ value: v.value, label: v.short, icon: v.icon }));
 
 onMounted(async () => {
   suppliers.value = await api.get('/suppliers').catch(() => []);

@@ -1,4 +1,5 @@
 import { reactive } from 'vue';
+import { Wrench } from 'lucide-vue-next';
 import { api } from './api.js';
 import { VEHICLE } from './constants.js';
 
@@ -80,7 +81,7 @@ export function localToday() {
 }
 
 // ---------- Vehicles & people ----------
-export const vehicleEmoji = (r) => VEHICLE[r?.vehicle_type]?.emoji || '🔧';
+export const vehicleIcon = (r) => VEHICLE[r?.vehicle_type]?.icon || Wrench;
 export function vehicleName(r) {
   const name = [r.brand, r.model].filter(Boolean).join(' ');
   return name || VEHICLE[r.vehicle_type]?.label || 'Véhicule';

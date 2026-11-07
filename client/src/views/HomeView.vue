@@ -35,26 +35,25 @@ function hideTip() {
 }
 
 const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-const greeting = computed(() => (new Date().getHours() < 18 ? 'Bonjour' : 'Bonsoir'));
 
 const quick = [
-  { to: '/reparations/nouvelle', icon: Wrench, label: 'Réparation', color: 'var(--blue)' },
-  { to: '/diagnostics/nouveau', icon: Zap, label: 'Diagnostic', color: 'var(--teal)' },
-  { to: '/vente', icon: ShoppingCart, label: 'Vente', color: 'var(--yellow)', dark: true },
-  { to: '/clients/nouveau', icon: UserPlus, label: 'Client', color: 'var(--green)' },
-  { to: '/stock/ajout', icon: PackagePlus, label: 'Stock', color: 'var(--orange)' },
+  { to: '/reparations/nouvelle', icon: Wrench, label: 'Réparation' },
+  { to: '/diagnostics/nouveau', icon: Zap, label: 'Diagnostic' },
+  { to: '/vente', icon: ShoppingCart, label: 'Vente' },
+  { to: '/clients/nouveau', icon: UserPlus, label: 'Client' },
+  { to: '/stock/ajout', icon: PackagePlus, label: 'Stock' },
 ];
 </script>
 
 <template>
   <div class="page">
-    <NavBar :title="greeting" large :eyebrow="today" :subtitle="settings.shop_name" :refresh="load">
+    <NavBar :title="settings.shop_name || 'Accueil'" large :eyebrow="today" :refresh="load">
       <router-link to="/planning" class="nav-icon" aria-label="Planning"><CalendarDays :size="18" :stroke-width="2.2" /></router-link>
     </NavBar>
 
     <div class="quick">
       <router-link v-for="q in quick" :key="q.to" :to="q.to">
-        <span class="q-icon" :style="{ background: q.color, color: q.dark ? 'var(--on-yellow)' : '#fff' }"><component :is="q.icon" :size="25" :stroke-width="2.1" /></span>
+        <span class="q-icon"><component :is="q.icon" :size="25" :stroke-width="2.1" /></span>
         {{ q.label }}
       </router-link>
     </div>
@@ -72,33 +71,32 @@ const quick = [
       <div class="lg-header big mt">Atelier</div>
       <div class="widgets four">
         <router-link to="/atelier?status=en_cours" class="widget">
-          <div class="w-glow" style="background: var(--blue)" />
-          <div class="w-head" style="color: var(--blue)"><Wrench :size="16" :stroke-width="2.4" />En cours</div>
+          <div class="w-head"><Wrench :size="16" :stroke-width="2.4" />En cours</div>
           <div class="w-value">{{ d.repairs.en_cours || 0 }}</div>
           <div class="w-sub">{{ d.repairs.en_attente || 0 }} en attente · {{ d.repairs.en_test || 0 }} en test</div>
         </router-link>
         <router-link to="/atelier?status=en_pause" class="widget">
-          <div class="w-head" style="color: var(--orange)"><Pause :size="16" :stroke-width="2.4" />En pause</div>
+          <div class="w-head"><Pause :size="16" :stroke-width="2.4" />En pause</div>
           <div class="w-value">{{ d.repairs.en_pause || 0 }}</div>
           <div class="w-sub">réparations</div>
         </router-link>
         <router-link to="/atelier?status=attente_piece" class="widget">
-          <div class="w-head" style="color: var(--purple)"><PackageSearch :size="16" :stroke-width="2.4" />Attente pièces</div>
+          <div class="w-head"><PackageSearch :size="16" :stroke-width="2.4" />Attente pièces</div>
           <div class="w-value">{{ d.repairs.attente_piece || 0 }}</div>
           <div class="w-sub">réparations</div>
         </router-link>
         <router-link to="/diagnostics" class="widget">
-          <div class="w-head" style="color: var(--teal)"><Activity :size="16" :stroke-width="2.4" />Diagnostics</div>
+          <div class="w-head"><Activity :size="16" :stroke-width="2.4" />Diagnostics</div>
           <div class="w-value">{{ d.diagnostics_open }}</div>
           <div class="w-sub">en cours</div>
         </router-link>
         <router-link to="/atelier?status=terminee" class="widget">
-          <div class="w-head" style="color: var(--green)"><CircleCheckBig :size="16" :stroke-width="2.4" />À récupérer</div>
+          <div class="w-head" :class="{ 'c-green': d.to_collect }"><CircleCheckBig :size="16" :stroke-width="2.4" />À récupérer</div>
           <div class="w-value">{{ d.to_collect }}</div>
           <div class="w-sub">véhicules prêts</div>
         </router-link>
         <router-link to="/stock?low=1" class="widget">
-          <div class="w-head" :style="{ color: d.low_stock.count ? 'var(--red)' : 'var(--label-2)' }"><TriangleAlert :size="16" :stroke-width="2.4" />Stock faible</div>
+          <div class="w-head" :class="{ 'c-red': d.low_stock.count }"><TriangleAlert :size="16" :stroke-width="2.4" />Stock faible</div>
           <div class="w-value">{{ d.low_stock.count }}</div>
           <div class="w-sub">sous le minimum</div>
         </router-link>
@@ -107,18 +105,17 @@ const quick = [
       <div class="lg-header big mt">Aujourd'hui</div>
       <div class="widgets">
         <router-link to="/caisse" class="widget span2 hero-w">
-          <div class="w-glow" style="background: var(--green)" />
-          <div class="w-head" style="color: var(--green)"><Banknote :size="16" :stroke-width="2.4" />Argent encaissé</div>
+          <div class="w-head"><Banknote :size="16" :stroke-width="2.4" />Argent encaissé</div>
           <div class="w-value">{{ money(d.cash_today.total) }}</div>
           <div class="w-sub">dont espèces {{ money(d.cash_today.especes || 0) }}</div>
         </router-link>
         <router-link to="/ventes" class="widget">
-          <div class="w-head" style="color: color-mix(in srgb, var(--yellow) 85%, var(--label))"><ShoppingCart :size="16" :stroke-width="2.4" />Ventes</div>
+          <div class="w-head"><ShoppingCart :size="16" :stroke-width="2.4" />Ventes</div>
           <div class="w-value" style="font-size: 24px">{{ money(d.sales_today.total) }}</div>
           <div class="w-sub">{{ d.sales_today.count }} vente(s)</div>
         </router-link>
         <router-link to="/caisse#credits" class="widget">
-          <div class="w-head" style="color: var(--orange)"><CreditCard :size="16" :stroke-width="2.4" />Crédits clients</div>
+          <div class="w-head" :class="{ 'c-orange': d.credits.count }"><CreditCard :size="16" :stroke-width="2.4" />Crédits clients</div>
           <div class="w-value" style="font-size: 24px">{{ money(d.credits.total) }}</div>
           <div class="w-sub">{{ d.credits.count }} impayé(s)</div>
         </router-link>

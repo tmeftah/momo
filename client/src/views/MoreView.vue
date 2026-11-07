@@ -19,25 +19,25 @@ async function lock() {
   <div class="page">
     <NavBar title="Plus" large />
     <ListGroup v-if="canInstall()">
-      <ListRow :icon="Smartphone" tile="blue" title="Installer l'application" subtitle="Plein écran · hors ligne · écran d'accueil" chevron @click="openInstall" />
+      <ListRow :icon="Smartphone" tile="accent" title="Installer l'application" subtitle="Plein écran · hors ligne · écran d'accueil" chevron @click="openInstall" />
     </ListGroup>
     <ListGroup header="Atelier">
-      <ListRow to="/batteries" :icon="BatteryCharging" tile="green" title="Batteries lithium" />
-      <ListRow to="/diagnostics" :icon="Activity" tile="teal" title="Diagnostics" />
-      <ListRow to="/planning" :icon="CalendarDays" tile="red" title="Planning" />
+      <ListRow to="/batteries" :icon="BatteryCharging" tile="accent" title="Batteries lithium" />
+      <ListRow to="/diagnostics" :icon="Activity" tile="accent" title="Diagnostics" />
+      <ListRow to="/planning" :icon="CalendarDays" tile="accent" title="Planning" />
     </ListGroup>
     <ListGroup header="Bibliothèque">
-      <ListRow to="/connecteurs" :icon="Cable" tile="purple" title="Connecteurs & adaptations" />
-      <ListRow to="/base" :icon="BookOpen" tile="orange" title="Base technique" />
+      <ListRow to="/connecteurs" :icon="Cable" tile="accent" title="Connecteurs & adaptations" />
+      <ListRow to="/base" :icon="BookOpen" tile="accent" title="Base technique" />
     </ListGroup>
     <ListGroup header="Commerce">
-      <ListRow to="/caisse" :icon="Wallet" tile="green" title="Caisse" />
-      <ListRow to="/ventes" :icon="Receipt" tile="yellow" title="Historique des ventes" />
-      <ListRow to="/fournisseurs" :icon="Truck" tile="indigo" title="Fournisseurs & achats" />
+      <ListRow to="/caisse" :icon="Wallet" tile="accent" title="Caisse" />
+      <ListRow to="/ventes" :icon="Receipt" tile="accent" title="Historique des ventes" />
+      <ListRow to="/fournisseurs" :icon="Truck" tile="accent" title="Fournisseurs & achats" />
     </ListGroup>
     <ListGroup>
-      <ListRow to="/parametres" :icon="Settings" tile="gray" title="Réglages" />
-      <ListRow :icon="Lock" tile="blue" title="Verrouiller" @click="lock" />
+      <ListRow to="/parametres" :icon="Settings" tile="accent" title="Réglages" />
+      <ListRow :icon="Lock" tile="accent" title="Verrouiller" @click="lock" />
     </ListGroup>
   </div>
 </template>

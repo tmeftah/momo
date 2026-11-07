@@ -54,7 +54,7 @@ async function toggleFav(s) {
     </div>
     <Skeleton v-if="!list" :rows="5" />
     <ListGroup v-else-if="list.length">
-      <ListRow v-for="s in list" :key="s.id" :to="`/base/${s.id}`" :thumb="s.photo || null" thumb-icon="📘" :chevron="false">
+      <ListRow v-for="s in list" :key="s.id" :to="`/base/${s.id}`" :thumb="s.photo || null" :thumb-icon="BookOpen" :chevron="false">
         <div class="cell-title">{{ s.title }}</div>
         <div class="cell-sub">{{ [s.category, s.symptoms || s.cause || s.solution].filter(Boolean).join(' · ') }}</div>
         <template #trailing>

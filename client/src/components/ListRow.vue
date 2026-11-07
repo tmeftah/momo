@@ -1,8 +1,8 @@
 <script setup>
-// One row of a grouped list. Leading: icon tile | emoji tile | photo thumb | avatar.
+// One row of a grouped list. Leading: icon tile | photo thumb | avatar.
 import { computed, useAttrs } from 'vue';
 import { RouterLink } from 'vue-router';
-import { ChevronRight, Check } from 'lucide-vue-next';
+import { ChevronRight, Check, Package } from 'lucide-vue-next';
 import { fileUrl } from '../api.js';
 import Avatar from './Avatar.vue';
 
@@ -14,10 +14,9 @@ const props = defineProps({
   subtitle: [String, Number],
   value: [String, Number],
   icon: [Object, Function],
-  tile: { type: String, default: 'blue' }, // color of the icon tile, or "soft"
-  emoji: String,
+  tile: { type: String, default: 'accent' }, // "accent", "soft", or a semantic color (red, orange…)
   thumb: { type: String, default: undefined },
-  thumbIcon: { type: String, default: '📦' },
+  thumbIcon: { type: [Object, Function], default: () => Package },
   avatar: String,
   chevron: { type: Boolean, default: undefined },
   selected: Boolean,
@@ -53,19 +52,18 @@ const bind = computed(() => {
       tap: tappable,
       destructive,
       action,
-      'has-tile': icon || emoji,
+      'has-tile': icon,
       'has-thumb': hasThumb,
       'has-avatar': avatar,
     }"
   >
     <slot name="leading">
-      <span v-if="icon || emoji" class="tile" :class="tile === 'soft' ? 'soft' : `bg-${tile}`">
-        <component :is="icon" v-if="icon" :size="18" :stroke-width="2.2" />
-        <template v-else>{{ emoji }}</template>
+      <span v-if="icon" class="tile" :class="tile === 'soft' ? 'soft' : `bg-${tile}`">
+        <component :is="icon" :size="18" :stroke-width="2.2" />
       </span>
       <template v-else-if="hasThumb">
         <img v-if="thumb" class="thumb" :src="fileUrl(thumb)" alt="" loading="lazy" />
-        <span v-else class="thumb">{{ thumbIcon }}</span>
+        <span v-else class="thumb"><component :is="thumbIcon" :size="22" :stroke-width="1.8" /></span>
       </template>
       <Avatar v-else-if="avatar" :name="avatar" :size="40" />
     </slot>

@@ -2,7 +2,7 @@
 import { ref, watch, onActivated } from 'vue';
 import { Plus, Activity } from 'lucide-vue-next';
 import { api } from '../api.js';
-import { money, fmtRelative, vehicleName, vehicleEmoji } from '../store.js';
+import { money, fmtRelative, vehicleName, vehicleIcon } from '../store.js';
 import { toastError } from '../ui.js';
 import NavBar from '../components/NavBar.vue';
 import ListGroup from '../components/ListGroup.vue';
@@ -44,7 +44,7 @@ watch([filter, q], () => {
     <Skeleton v-if="!list" :rows="5" />
     <ListGroup v-else-if="list.length">
       <ListRow v-for="d in list" :key="d.id" :to="`/diagnostics/${d.id}`" style="--inset: 72px">
-        <template #leading><span class="thumb">{{ vehicleEmoji(d) }}</span></template>
+        <template #leading><span class="thumb"><component :is="vehicleIcon(d)" :size="22" :stroke-width="1.8" /></span></template>
         <div class="cell-title"><span v-if="d.priority === 'urgent' && !d.decision" class="c-red" style="font-weight: 800">! </span>{{ vehicleName(d) }}</div>
         <div class="cell-sub">{{ d.fault_found || d.symptoms || '—' }}</div>
         <div class="cell-sub">{{ d.client_name || 'Sans client' }} · {{ fmtRelative(d.created_at) }}</div>

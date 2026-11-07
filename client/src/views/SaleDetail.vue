@@ -1,4 +1,5 @@
 <script setup>
+import { Package, Nut } from 'lucide-vue-next';
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { api } from '../api.js';
@@ -66,7 +67,7 @@ async function cancel() {
 
       <ListGroup header="Articles" :footer="`Coût d'achat ${money(s.cost)} · marge ${money(s.total - s.cost)}`">
         <ListRow
-          v-for="l in s.lines" :key="l.id" :to="l.item_id ? `/stock/${l.item_id}` : undefined" :thumb="l.photo || null" :thumb-icon="l.item_id ? '📦' : '🔩'"
+          v-for="l in s.lines" :key="l.id" :to="l.item_id ? `/stock/${l.item_id}` : undefined" :thumb="l.photo || null" :thumb-icon="l.item_id ? Package : Nut"
           :title="l.name" :subtitle="`${fmtNum(l.qty)} × ${money(l.unit_price)}`" :chevron="false"
         >
           <template #trailing><span class="bold num">{{ money(l.qty * l.unit_price) }}</span></template>

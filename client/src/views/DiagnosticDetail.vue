@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { Phone, MessageCircle, UserRound, Pencil, Wrench, BookOpen, Timer } from 'lucide-vue-next';
 import { api } from '../api.js';
 import { DIAG_DECISIONS, VEHICLE, STATUS } from '../constants.js';
-import { money, fmtDate, vehicleName, vehicleEmoji, waLink, telLink } from '../store.js';
+import { money, fmtDate, vehicleName, vehicleIcon, waLink, telLink } from '../store.js';
 import { toast, toastError, confirmAction, haptic } from '../ui.js';
 import NavBar from '../components/NavBar.vue';
 import ListGroup from '../components/ListGroup.vue';
@@ -89,7 +89,7 @@ const sections = [
     <Skeleton v-if="!d" :rows="5" />
     <template v-else>
       <div class="hero">
-        <span class="tile xl soft">{{ vehicleEmoji(d) }}</span>
+        <span class="tile xl soft"><component :is="vehicleIcon(d)" :size="36" :stroke-width="1.8" /></span>
         <div class="hero-title">{{ vehicleName(d) }}</div>
         <div class="hero-sub">{{ [VEHICLE[d.vehicle_type]?.short, d.voltage, d.client_name].filter(Boolean).join(' · ') }}</div>
         <div class="hero-pills">
@@ -117,7 +117,7 @@ const sections = [
       </div>
 
       <ListGroup v-if="d.repair">
-        <ListRow :to="`/reparations/${d.repair.id}`" :icon="Wrench" tile="blue" :title="`Réparation #${d.repair.id}`" :subtitle="`${STATUS[d.repair.status]?.label} · ${money(d.repair.total)}`" />
+        <ListRow :to="`/reparations/${d.repair.id}`" :icon="Wrench" tile="accent" :title="`Réparation #${d.repair.id}`" :subtitle="`${STATUS[d.repair.status]?.label} · ${money(d.repair.total)}`" />
       </ListGroup>
       <template v-else-if="d.decision !== 'refuse' && d.decision !== 'impossible'">
         <button class="btn filled lg block mt" :disabled="converting" @click="convert"><Wrench :size="20" />Créer la réparation</button>
@@ -129,7 +129,7 @@ const sections = [
       <PhotoGallery ref-type="diagnostic" :ref-id="id" />
 
       <ListGroup>
-        <ListRow :to="`/base/nouveau?diagnostic_id=${id}`" :icon="BookOpen" tile="orange" title="Ajouter à la base technique" />
+        <ListRow :to="`/base/nouveau?diagnostic_id=${id}`" :icon="BookOpen" tile="accent" title="Ajouter à la base technique" />
       </ListGroup>
       <ListGroup v-if="d.notes" header="Notes"><div class="cell text-cell">{{ d.notes }}</div></ListGroup>
       <ListGroup :footer="`Créé ${fmtDate(d.created_at, true)}`">

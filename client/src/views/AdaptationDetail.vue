@@ -52,8 +52,8 @@ async function remove() {
       <div class="subhead secondary">{{ fmtDate(a.created_at) }}</div>
 
       <ListGroup v-if="a.connector_id || a.repair_id">
-        <ListRow v-if="a.connector_id" :to="`/connecteurs/${a.connector_id}`" :icon="Cable" tile="purple" title="Connecteur" :value="a.connector_name" />
-        <ListRow v-if="a.repair_id" :to="`/reparations/${a.repair_id}`" :icon="Wrench" tile="blue" title="Réparation" :value="`#${a.repair_id}`" />
+        <ListRow v-if="a.connector_id" :to="`/connecteurs/${a.connector_id}`" :icon="Cable" tile="accent" title="Connecteur" :value="a.connector_name" />
+        <ListRow v-if="a.repair_id" :to="`/reparations/${a.repair_id}`" :icon="Wrench" tile="accent" title="Réparation" :value="`#${a.repair_id}`" />
       </ListGroup>
 
       <PhotoGallery ref-type="adaptation" :ref-id="id" :tags="TAGS" />

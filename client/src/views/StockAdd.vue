@@ -46,9 +46,9 @@ async function submit() {
     <NavBar title="Entrée de stock" large back="/stock" subtitle="Ajout rapide sur un article existant" />
 
     <ListGroup v-if="!item">
-      <ListRow :icon="Search" tile="blue" title="Choisir un article" chevron @click="picking = true" />
-      <ListRow to="/stock/nouveau" :icon="PackagePlus" tile="green" title="Créer un nouvel article" />
-      <ListRow to="/achats/nouveau" :icon="Truck" tile="indigo" title="Achat fournisseur (avec facture)" />
+      <ListRow :icon="Search" tile="accent" title="Choisir un article" chevron @click="picking = true" />
+      <ListRow to="/stock/nouveau" :icon="PackagePlus" tile="accent" title="Créer un nouvel article" />
+      <ListRow to="/achats/nouveau" :icon="Truck" tile="accent" title="Achat fournisseur (avec facture)" />
     </ListGroup>
 
     <template v-else>

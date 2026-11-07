@@ -1,16 +1,16 @@
 import {
   Clock, Wrench, Pause, PackageSearch, FlaskConical, CircleCheckBig, Flag,
   Zap, PlugZap, BatteryCharging, Banknote, CreditCard, Repeat, Handshake,
-  CircleCheck, CircleHelp, CircleX, Ban,
+  CircleCheck, CircleHelp, CircleX, Ban, Bike, Scooter, Motorbike, Battery, Drill, Cog,
 } from 'lucide-vue-next';
 
 export const VEHICLE_TYPES = [
-  { value: 'velo', label: 'Vélo électrique', short: 'Vélo', emoji: '🚲' },
-  { value: 'trottinette', label: 'Trottinette électrique', short: 'Trottinette', emoji: '🛴' },
-  { value: 'scooter', label: 'Scooter électrique', short: 'Scooter', emoji: '🛵' },
-  { value: 'batterie', label: 'Batterie véhicule', short: 'Batterie', emoji: '🔋' },
-  { value: 'outil', label: 'Batterie outil / visseuse', short: 'Outil', emoji: '🪛' },
-  { value: 'autre', label: 'Autre', short: 'Autre', emoji: '⚙️' },
+  { value: 'velo', label: 'Vélo électrique', short: 'Vélo', icon: Bike },
+  { value: 'trottinette', label: 'Trottinette électrique', short: 'Trottinette', icon: Scooter },
+  { value: 'scooter', label: 'Scooter électrique', short: 'Scooter', icon: Motorbike },
+  { value: 'batterie', label: 'Batterie véhicule', short: 'Batterie', icon: Battery },
+  { value: 'outil', label: 'Batterie outil / visseuse', short: 'Outil', icon: Drill },
+  { value: 'autre', label: 'Autre', short: 'Autre', icon: Cog },
 ];
 
 // Workflow order matters (progress bar on the repair page)

@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { Phone, MessageCircle, UserRound, Pencil, Play, CircleCheckBig, Flag, BookOpen, Cable, Activity, Send } from 'lucide-vue-next';
 import { api } from '../api.js';
 import { REPAIR_STATUSES, STATUS, PRIORITIES, CATEGORY, VEHICLE, PHOTO_TAGS_BEFORE_AFTER } from '../constants.js';
-import { money, fmtDate, settings, vehicleName, vehicleEmoji, readyMessage, waLink, telLink } from '../store.js';
+import { money, fmtDate, settings, vehicleName, vehicleIcon, readyMessage, waLink, telLink } from '../store.js';
 import { toast, toastError, confirmAction, chooseAction, haptic } from '../ui.js';
 import NavBar from '../components/NavBar.vue';
 import ListGroup from '../components/ListGroup.vue';
@@ -124,7 +124,7 @@ async function remove() {
     <Skeleton v-if="!r" :rows="5" />
     <template v-else>
       <div class="hero">
-        <span class="tile xl soft">{{ vehicleEmoji(r) }}</span>
+        <span class="tile xl soft"><component :is="vehicleIcon(r)" :size="36" :stroke-width="1.8" /></span>
         <div class="hero-title">{{ vehicleName(r) }}</div>
         <div class="hero-sub">{{ [VEHICLE[r.vehicle_type]?.short, r.voltage, `#${r.id}`].filter(Boolean).join(' · ') }}</div>
         <div class="hero-pills">
@@ -179,7 +179,7 @@ async function remove() {
       </ListGroup>
 
       <ListGroup v-if="r.diagnostic">
-        <ListRow :to="`/diagnostics/${r.diagnostic.id}`" :icon="Activity" tile="teal" :title="`Diagnostic #${r.diagnostic.id}`" :subtitle="r.diagnostic.balance > 0.009 ? `${money(r.diagnostic.price)} · reste ${money(r.diagnostic.balance)}` : `${money(r.diagnostic.price)} · payé`" />
+        <ListRow :to="`/diagnostics/${r.diagnostic.id}`" :icon="Activity" tile="accent" :title="`Diagnostic #${r.diagnostic.id}`" :subtitle="r.diagnostic.balance > 0.009 ? `${money(r.diagnostic.price)} · reste ${money(r.diagnostic.balance)}` : `${money(r.diagnostic.price)} · payé`" />
       </ListGroup>
 
       <RepairDetailsCard :category="r.category" :details="r.details" />
@@ -199,8 +199,8 @@ async function remove() {
       <PhotoGallery ref-type="repair" :ref-id="id" :tags="PHOTO_TAGS_BEFORE_AFTER" header="Photos avant / après" />
 
       <ListGroup header="Capitaliser">
-        <ListRow :to="`/base/nouveau?repair_id=${id}`" :icon="BookOpen" tile="orange" title="Ajouter à la base technique" />
-        <ListRow :to="`/adaptations/nouvelle?repair_id=${id}`" :icon="Cable" tile="purple" title="Enregistrer une adaptation" />
+        <ListRow :to="`/base/nouveau?repair_id=${id}`" :icon="BookOpen" tile="accent" title="Ajouter à la base technique" />
+        <ListRow :to="`/adaptations/nouvelle?repair_id=${id}`" :icon="Cable" tile="accent" title="Enregistrer une adaptation" />
       </ListGroup>
 
       <ListGroup v-if="r.notes" header="Notes internes">

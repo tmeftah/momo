@@ -1,6 +1,6 @@
 <script setup>
 import { CATEGORY } from '../constants.js';
-import { money, fmtRelative, vehicleName, vehicleEmoji } from '../store.js';
+import { money, fmtRelative, vehicleName, vehicleIcon } from '../store.js';
 import ListRow from './ListRow.vue';
 import StatusPill from './StatusPill.vue';
 
@@ -11,7 +11,7 @@ defineProps({ repair: { type: Object, required: true }, showMoney: { type: Boole
   <ListRow :to="`/reparations/${repair.id}`" style="--inset: 72px">
     <template #leading>
       <span class="thumb" style="position: relative">
-        {{ vehicleEmoji(repair) }}
+        <component :is="vehicleIcon(repair)" :size="22" :stroke-width="1.8" />
         <span
           v-if="repair.category !== 'general'" class="tile" :class="`bg-${CATEGORY[repair.category]?.color}`"
           style="position: absolute; right: -4px; bottom: -4px; width: 20px; height: 20px; border-radius: 6px; border: 2px solid var(--cell)"

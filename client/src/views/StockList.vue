@@ -71,7 +71,7 @@ const qtyColor = (i) => (i.quantity <= 0 ? 'red' : i.low ? 'orange' : 'gray');
       <ListGroup v-if="items.length" :footer="`${items.length} article(s) · valeur d'achat ${money(totalValue)}`">
         <ListRow v-for="i in items" :key="i.id" :to="`/stock/${i.id}`" :thumb="i.photo || null" :chevron="false">
           <div class="cell-title">{{ i.name }}</div>
-          <div class="cell-sub">{{ [i.reference, i.voltage, i.power, i.location && '📍 ' + i.location].filter(Boolean).join(' · ') || i.category }}</div>
+          <div class="cell-sub">{{ [i.reference, i.voltage, i.power, i.location].filter(Boolean).join(' · ') || i.category }}</div>
           <template #trailing>
             <div class="cell-trail">
               <span class="subhead bold num">{{ money(i.sale_price) }}</span>

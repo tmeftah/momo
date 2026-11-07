@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Cable, Plus } from 'lucide-vue-next';
+import { Cable, Plus, PlugZap } from 'lucide-vue-next';
 import { api } from '../api.js';
 import { WIRE_COLORS } from '../constants.js';
 import { fmtDate } from '../store.js';
@@ -70,8 +70,8 @@ async function remove() {
       <ListGroup v-if="c.notes" header="Notes"><div class="cell text-cell">{{ c.notes }}</div></ListGroup>
 
       <ListGroup header="Adaptations réalisées">
-        <ListRow v-for="a in c.adaptations" :key="a.id" :to="`/adaptations/${a.id}`" :thumb="a.photo || null" thumb-icon="🛠️" :title="a.title" :subtitle="fmtDate(a.created_at)" />
-        <ListRow :to="`/adaptations/nouvelle?connector_id=${id}`" :icon="Plus" tile="blue" title="Nouvelle adaptation" action />
+        <ListRow v-for="a in c.adaptations" :key="a.id" :to="`/adaptations/${a.id}`" :thumb="a.photo || null" :thumb-icon="PlugZap" :title="a.title" :subtitle="fmtDate(a.created_at)" />
+        <ListRow :to="`/adaptations/nouvelle?connector_id=${id}`" :icon="Plus" tile="accent" title="Nouvelle adaptation" action />
       </ListGroup>
 
       <ListGroup>

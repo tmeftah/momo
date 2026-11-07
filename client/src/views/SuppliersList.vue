@@ -36,7 +36,7 @@ watch(q, () => {
     </NavBar>
     <SearchField v-model="q" placeholder="Nom, téléphone" />
     <ListGroup>
-      <ListRow to="/achats/nouveau" :icon="PackagePlus" tile="green" title="Enregistrer un achat" subtitle="Augmente le stock automatiquement" />
+      <ListRow to="/achats/nouveau" :icon="PackagePlus" tile="accent" title="Enregistrer un achat" subtitle="Augmente le stock automatiquement" />
     </ListGroup>
     <Skeleton v-if="!list" :rows="4" :thumb="false" />
     <ListGroup v-else-if="list.length">

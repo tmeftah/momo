@@ -45,8 +45,8 @@ async function remove() {
         <div class="hero-amount">{{ money(p.total) }}</div>
       </div>
       <ListGroup>
-        <ListRow v-if="p.supplier_id" :to="`/fournisseurs/${p.supplier_id}`" :icon="Truck" tile="indigo" title="Fournisseur" :value="p.supplier_name" />
-        <ListRow v-else :icon="Truck" tile="gray" title="Fournisseur" value="—" />
+        <ListRow v-if="p.supplier_id" :to="`/fournisseurs/${p.supplier_id}`" :icon="Truck" tile="accent" title="Fournisseur" :value="p.supplier_name" />
+        <ListRow v-else :icon="Truck" tile="accent" title="Fournisseur" value="—" />
         <ListRow v-if="p.reference" title="N° de facture" :value="p.reference" />
       </ListGroup>
       <ListGroup header="Articles">

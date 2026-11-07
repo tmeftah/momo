@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { Phone, MessageCircle, Wrench, ShoppingCart, Activity, CreditCard } from 'lucide-vue-next';
 import { api } from '../api.js';
 import { DOC_LABEL, DOC_ROUTE, METHOD } from '../constants.js';
-import { money, fmtDate, vehicleName, vehicleEmoji, waLink, telLink, monthLabel, groupBy } from '../store.js';
+import { money, fmtDate, vehicleName, vehicleIcon, waLink, telLink, monthLabel, groupBy } from '../store.js';
 import { toast, toastError, confirmAction } from '../ui.js';
 import NavBar from '../components/NavBar.vue';
 import ListGroup from '../components/ListGroup.vue';
@@ -55,9 +55,9 @@ const tabs = computed(() => [
 const timeline = computed(() => {
   if (!h.value) return [];
   const items = [
-    ...h.value.repairs.map((r) => ({ key: `r${r.id}`, date: r.created_at, emoji: vehicleEmoji(r), title: vehicleName(r), sub: `${r.category === 'batterie' ? 'Batterie' : 'Réparation'} #${r.id}`, amount: r.total, to: `/reparations/${r.id}`, status: r.status })),
-    ...h.value.diagnostics.map((d) => ({ key: `d${d.id}`, date: d.created_at, emoji: '⚡', title: d.fault_found || d.symptoms || 'Diagnostic', sub: `Diagnostic #${d.id}`, amount: d.price, to: `/diagnostics/${d.id}` })),
-    ...h.value.sales.map((s) => ({ key: `s${s.id}`, date: s.created_at, emoji: '🛒', title: s.summary, sub: `Achat #${s.id}`, amount: s.total, to: `/ventes/${s.id}` })),
+    ...h.value.repairs.map((r) => ({ key: `r${r.id}`, date: r.created_at, icon: vehicleIcon(r), title: vehicleName(r), sub: `${r.category === 'batterie' ? 'Batterie' : 'Réparation'} #${r.id}`, amount: r.total, to: `/reparations/${r.id}`, status: r.status })),
+    ...h.value.diagnostics.map((d) => ({ key: `d${d.id}`, date: d.created_at, icon: Activity, title: d.fault_found || d.symptoms || 'Diagnostic', sub: `Diagnostic #${d.id}`, amount: d.price, to: `/diagnostics/${d.id}` })),
+    ...h.value.sales.map((s) => ({ key: `s${s.id}`, date: s.created_at, icon: ShoppingCart, title: s.summary, sub: `Achat #${s.id}`, amount: s.total, to: `/ventes/${s.id}` })),
     ...h.value.payments.map((p) => ({ key: `p${p.id}`, date: p.created_at, icon: METHOD[p.method]?.icon, tile: METHOD[p.method]?.color, title: `Paiement ${METHOD[p.method]?.label?.toLowerCase() || ''}`, sub: `${DOC_LABEL[p.ref_type]} #${p.ref_id}`, amount: p.amount, to: DOC_ROUTE[p.ref_type] + p.ref_id, paid: true })),
   ].sort((a, b) => (a.date < b.date ? 1 : -1));
   return groupBy(items, (i) => monthLabel(i.date));
@@ -111,7 +111,7 @@ async function remove() {
 
       <template v-if="tab === 'tout'">
         <ListGroup v-for="m in timeline" :key="m.key" :header="m.key">
-          <ListRow v-for="t in m.items" :key="t.key" :to="t.to" :emoji="t.emoji" :icon="t.icon" :tile="t.tile || 'soft'" :title="t.title" :subtitle="`${t.sub} · ${fmtDate(t.date)}`" :chevron="false">
+          <ListRow v-for="t in m.items" :key="t.key" :to="t.to" :icon="t.icon" :tile="t.tile || 'soft'" :title="t.title" :subtitle="`${t.sub} · ${fmtDate(t.date)}`" :chevron="false">
             <template #trailing>
               <div class="cell-trail">
                 <span class="bold num" :class="{ 'c-green': t.paid }">{{ t.paid ? '+' : '' }}{{ money(t.amount) }}</span>
@@ -127,12 +127,12 @@ async function remove() {
         <template v-if="tab === 'reparations'"><RepairRow v-for="r in repairsOnly" :key="r.id" :repair="r" /></template>
         <template v-if="tab === 'batteries'"><RepairRow v-for="r in batteries" :key="r.id" :repair="r" /></template>
         <template v-if="tab === 'diagnostics'">
-          <ListRow v-for="d in h.diagnostics" :key="d.id" :to="`/diagnostics/${d.id}`" :icon="Activity" tile="teal" :title="d.fault_found || d.symptoms || 'Diagnostic'" :subtitle="`#${d.id} · ${fmtDate(d.created_at)}`">
+          <ListRow v-for="d in h.diagnostics" :key="d.id" :to="`/diagnostics/${d.id}`" :icon="Activity" tile="accent" :title="d.fault_found || d.symptoms || 'Diagnostic'" :subtitle="`#${d.id} · ${fmtDate(d.created_at)}`">
             <template #trailing><div class="cell-trail"><span class="bold num">{{ money(d.price) }}</span><StatusPill :decision="d.decision" short /></div></template>
           </ListRow>
         </template>
         <template v-if="tab === 'achats'">
-          <ListRow v-for="s in h.sales" :key="s.id" :to="`/ventes/${s.id}`" emoji="🛒" tile="soft" :title="s.summary" :subtitle="`#${s.id} · ${fmtDate(s.created_at)}`">
+          <ListRow v-for="s in h.sales" :key="s.id" :to="`/ventes/${s.id}`" :icon="ShoppingCart" tile="soft" :title="s.summary" :subtitle="`#${s.id} · ${fmtDate(s.created_at)}`">
             <template #trailing><div class="cell-trail"><span class="bold num">{{ money(s.total) }}</span><span v-if="s.balance > 0.009" class="pill orange">reste {{ money(s.balance) }}</span></div></template>
           </ListRow>
         </template>

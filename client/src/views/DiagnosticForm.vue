@@ -71,7 +71,7 @@ async function save() {
       <div class="lg-header mt">Véhicule</div>
       <div class="options" style="grid-template-columns: repeat(3, minmax(0, 1fr))">
         <button v-for="v in VEHICLE_TYPES" :key="v.value" type="button" class="option" :class="{ on: form.vehicle_type === v.value }" @click="haptic(); form.vehicle_type = v.value">
-          <span class="o-icon">{{ v.emoji }}</span>{{ v.short }}
+          <component :is="v.icon" class="o-icon" :size="26" :stroke-width="1.8" />{{ v.short }}
         </button>
       </div>
       <ListGroup>

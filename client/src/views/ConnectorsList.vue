@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch, onActivated } from 'vue';
-import { Plus, Cable, Wrench } from 'lucide-vue-next';
+import { Plus, Cable, Wrench, PlugZap } from 'lucide-vue-next';
 import { api, fileUrl } from '../api.js';
 import { CONNECTOR_APPS } from '../constants.js';
 import { toastError } from '../ui.js';
@@ -63,10 +63,10 @@ watch([q, app], () => {
 
       <ListGroup v-if="adaptations.length" header="Adaptations réalisées">
         <template #header-right><router-link to="/adaptations/nouvelle">Ajouter</router-link></template>
-        <ListRow v-for="a in adaptations" :key="a.id" :to="`/adaptations/${a.id}`" :thumb="a.photo || null" thumb-icon="🛠️" :title="a.title" :subtitle="a.connector_name || 'Sans connecteur'" />
+        <ListRow v-for="a in adaptations" :key="a.id" :to="`/adaptations/${a.id}`" :thumb="a.photo || null" :thumb-icon="PlugZap" :title="a.title" :subtitle="a.connector_name || 'Sans connecteur'" />
       </ListGroup>
       <ListGroup v-else-if="list.length">
-        <ListRow to="/adaptations/nouvelle" :icon="Wrench" tile="purple" title="Enregistrer une adaptation" />
+        <ListRow to="/adaptations/nouvelle" :icon="Wrench" tile="accent" title="Enregistrer une adaptation" />
       </ListGroup>
     </template>
   </div>
