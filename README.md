@@ -90,7 +90,7 @@ make update               # pulls from GitHub, rebuilds, restarts
 ### Deployment notes
 
 - The container joins the **external** Traefik network (`TRAEFIK_NETWORK`, default `traefik`) and listens on port 3000. TLS comes from your cert resolver.
-- Data is stored in the named volume `vae-data` (`/data`): `vae.db`, `uploads/` (photos), `backups/` (one SQLite snapshot a day, the last 14 are kept).
+- Data is stored in the named volume `vae-data` (`/data`): `vae.db`, `uploads/` (photos, resized to 1920 px and stored as WebP — about 200–400 KB each), `backups/` (one SQLite snapshot a day, the last 14 are kept).
 - `INITIAL_PIN` is only used on first start. Change the PIN in **Paramètres → Sécurité**.
 - The app is exposed to the internet and protected by the PIN only. Login is rate-limited (5 failures per IP → locked for 15 min, plus a global limit), sessions are httpOnly/SameSite=strict cookies, and every API route and photo requires a session. For an extra lock, enable the IP allow-list middleware in `docker-compose.yml`.
 

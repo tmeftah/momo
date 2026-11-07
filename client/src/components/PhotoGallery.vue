@@ -40,8 +40,10 @@ async function add() {
   input.value.click();
 }
 
-// Phone photos (4–12 MB) are shrunk to ~300 KB before upload
-async function shrink(file, max = 1600) {
+// Phone photos (4–12 MB) are downscaled before upload so sending is fast on mobile data.
+// High JPEG quality on purpose: the server does the final WebP compression (~200–400 KB).
+// If the browser can't decode the file, the original is sent and the server handles it.
+async function shrink(file, max = 1920) {
   try {
     const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
     const scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
@@ -49,7 +51,8 @@ async function shrink(file, max = 1600) {
     canvas.width = Math.round(bmp.width * scale);
     canvas.height = Math.round(bmp.height * scale);
     canvas.getContext('2d').drawImage(bmp, 0, 0, canvas.width, canvas.height);
-    return (await new Promise((r) => canvas.toBlob(r, 'image/jpeg', 0.82))) || file;
+    const blob = await new Promise((r) => canvas.toBlob(r, 'image/jpeg', 0.9));
+    return blob && blob.size < file.size ? blob : file;
   } catch {
     return file;
   }
@@ -62,7 +65,7 @@ async function onFiles(e) {
     uploading.value++;
     try {
       const fd = new FormData();
-      fd.append('file', await shrink(f), 'photo.jpg');
+      fd.append('file', await shrink(f), f.name || 'photo');
       const params = new URLSearchParams({ ref_type: props.refType, ref_id: props.refId });
       if (pendingTag.value) params.set('tag', pendingTag.value);
       photos.value.push(await api.upload(`/photos?${params}`, fd));

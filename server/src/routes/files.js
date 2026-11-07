@@ -1,13 +1,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { pipeline } from 'node:stream/promises';
 import { db } from '../db.js';
 import { config } from '../config.js';
 import { httpError, PHOTO_REFS } from '../lib/util.js';
 import { FILE_RE, unlinkFiles } from '../lib/photos.js';
+import { compressPhoto } from '../lib/image.js';
 
-const EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' };
+const ACCEPTED = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif']);
 const MIME = { jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif' };
 
 export default async function fileRoutes(app) {
@@ -23,18 +23,27 @@ export default async function fileRoutes(app) {
     if (!PHOTO_REFS.includes(refType) || !refId) throw httpError(400, 'Référence photo invalide');
     const file = await req.file();
     if (!file) throw httpError(400, 'Aucun fichier reçu');
-    const ext = EXT[file.mimetype];
-    if (!ext) {
+    if (!ACCEPTED.has(file.mimetype)) {
       file.file.resume();
       throw httpError(415, 'Format non supporté (JPEG, PNG, WebP ou GIF)');
     }
-    const filename = `${crypto.randomUUID()}.${ext}`;
-    const dest = path.join(config.uploadsDir, filename);
-    await pipeline(file.file, fs.createWriteStream(dest));
-    if (file.file.truncated) {
-      fs.rmSync(dest, { force: true });
-      throw httpError(413, `Photo trop lourde (max ${config.maxUploadMb} Mo)`);
+    let raw;
+    try {
+      raw = await file.toBuffer();
+    } catch (err) {
+      if (err.code === 'FST_REQ_FILE_TOO_LARGE') throw httpError(413, `Photo trop lourde (max ${config.maxUploadMb} Mo)`);
+      throw err;
     }
+    let photo;
+    try {
+      photo = await compressPhoto(raw);
+    } catch (err) {
+      req.log.warn({ err: err.message }, 'Photo illisible');
+      throw httpError(415, 'Image illisible ou corrompue');
+    }
+    const filename = `${crypto.randomUUID()}.${photo.ext}`;
+    await fs.promises.writeFile(path.join(config.uploadsDir, filename), photo.buffer);
+    req.log.info({ in: raw.length, out: photo.buffer.length }, 'Photo enregistrée');
     const tag = req.query.tag ? String(req.query.tag).slice(0, 40) : null;
     const caption = req.query.caption ? String(req.query.caption).slice(0, 200) : null;
     const info = db()

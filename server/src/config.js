@@ -17,6 +17,9 @@ export const config = {
   initialPin: process.env.INITIAL_PIN || '',
   sessionDays: Number(process.env.SESSION_DAYS) || 30,
   maxUploadMb: Number(process.env.MAX_UPLOAD_MB) || 15,
+  // Stored photos: longest side in pixels and WebP quality (1–100)
+  photoMaxPx: Number(process.env.PHOTO_MAX_PX) || 1920,
+  photoQuality: Number(process.env.PHOTO_QUALITY) || 80,
   backupKeep: Number(process.env.BACKUP_KEEP) || 14,
   logLevel: process.env.LOG_LEVEL || 'info',
 };
