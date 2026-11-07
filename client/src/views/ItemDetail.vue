@@ -1,11 +1,17 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { Package, Minus, Plus } from 'lucide-vue-next';
 import { api } from '../api.js';
 import { VEHICLE } from '../constants.js';
-import { money, fmtNum, fmtDate, toast, toastError } from '../store.js';
-import PageHeader from '../components/PageHeader.vue';
+import { money, fmtNum, fmtDate } from '../store.js';
+import { toast, toastError, confirmAction, haptic } from '../ui.js';
+import NavBar from '../components/NavBar.vue';
+import ListGroup from '../components/ListGroup.vue';
+import ListRow from '../components/ListRow.vue';
 import PhotoGallery from '../components/PhotoGallery.vue';
+import Stepper from '../components/Stepper.vue';
+import Skeleton from '../components/Skeleton.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -14,20 +20,20 @@ const item = ref(null);
 const delta = ref(1);
 const note = ref('');
 
-const REASONS = { vente: '🛒 Vente', reparation: '🔧 Réparation', achat: '📇 Achat fournisseur', entree: '➕ Entrée', sortie: '➖ Sortie', ajustement: '✏️ Ajustement', annulation: '↩️ Annulation' };
+const REASONS = { vente: 'Vente', reparation: 'Réparation', achat: 'Achat fournisseur', entree: 'Entrée', sortie: 'Sortie', ajustement: 'Ajustement', annulation: 'Annulation' };
 const REF_ROUTE = { sale: '/ventes/', repair: '/reparations/', purchase: '/achats/' };
 
 const margin = computed(() => (item.value ? item.value.sale_price - item.value.purchase_price : 0));
 const marginPct = computed(() => (item.value?.purchase_price > 0 ? Math.round((margin.value / item.value.purchase_price) * 100) : null));
+const qtyColor = computed(() => (!item.value ? '' : item.value.quantity <= 0 ? 'var(--red)' : item.value.low ? 'var(--orange)' : 'var(--green)'));
 
-async function load() {
+onMounted(async () => {
   try {
     item.value = await api.get(`/items/${id}`);
   } catch (e) {
     toastError(e);
   }
-}
-onMounted(load);
+});
 
 async function adjust(sign) {
   const d = sign * Math.abs(Number(delta.value) || 0);
@@ -35,14 +41,15 @@ async function adjust(sign) {
   try {
     item.value = await api.post(`/items/${id}/adjust`, { delta: d, note: note.value });
     note.value = '';
-    toast(`Stock ${d > 0 ? '+' : ''}${fmtNum(d)} → ${fmtNum(item.value.quantity)}`);
+    haptic('success');
+    toast(`${d > 0 ? 'Entrée' : 'Sortie'} de ${fmtNum(Math.abs(d))} · stock ${fmtNum(item.value.quantity)}`);
   } catch (e) {
     toastError(e);
   }
 }
 
 async function remove() {
-  if (!confirm(`Supprimer « ${item.value.name} » du stock ? L'historique des ventes est conservé.`)) return;
+  if (!(await confirmAction("L'historique des ventes et réparations est conservé.", { title: `Supprimer « ${item.value.name} » ?`, confirm: "Supprimer l'article" }))) return;
   try {
     await api.del(`/items/${id}`);
     toast('Article supprimé');
@@ -55,62 +62,64 @@ async function remove() {
 
 <template>
   <div class="page">
-    <PageHeader :title="item?.name || 'Article'" back="/stock">
-      <router-link :to="`/stock/${id}/modifier`" class="btn btn-sm">✏️</router-link>
-    </PageHeader>
-    <div v-if="item" class="stack">
+    <NavBar :reveal-at="160" :title="item?.name || ''" back="/stock">
+      <router-link :to="`/stock/${id}/modifier`" class="nav-btn">Modifier</router-link>
+    </NavBar>
+    <Skeleton v-if="!item" :rows="4" />
+    <template v-else>
+      <div class="hero">
+        <span class="tile xl soft"><Package :size="36" :stroke-width="1.6" /></span>
+        <div class="hero-title">{{ item.name }}</div>
+        <div class="hero-sub">{{ [item.category, item.reference].filter(Boolean).join(' · ') || 'Article' }}</div>
+      </div>
+
+      <div class="widgets mt">
+        <div class="widget" style="min-height: 96px">
+          <div class="w-head" :style="{ color: qtyColor }">En stock</div>
+          <div class="w-value" :style="{ color: qtyColor }">{{ fmtNum(item.quantity) }}</div>
+          <div class="w-sub">minimum {{ fmtNum(item.min_stock) }}</div>
+        </div>
+        <div class="widget" style="min-height: 96px">
+          <div class="w-head" style="color: color-mix(in srgb, var(--yellow) 85%, var(--label))">Prix de vente</div>
+          <div class="w-value" style="font-size: 26px">{{ money(item.sale_price) }}</div>
+          <div class="w-sub">marge {{ money(margin) }}<template v-if="marginPct !== null"> · {{ marginPct }} %</template></div>
+        </div>
+      </div>
+
+      <ListGroup header="Mouvement rapide">
+        <div class="cell"><span class="cell-main cell-title">Quantité</span><Stepper v-model="delta" /></div>
+        <label class="cell field"><span class="field-label">Motif</span><input v-model="note" placeholder="Inventaire, casse…" /></label>
+        <div class="cell" style="gap: 10px">
+          <button class="btn red grow" @click="adjust(-1)"><Minus :size="18" :stroke-width="2.6" />Sortie</button>
+          <button class="btn tinted grow" style="--tint: var(--green)" @click="adjust(1)"><Plus :size="18" :stroke-width="2.6" />Entrée</button>
+        </div>
+      </ListGroup>
+
       <PhotoGallery ref-type="item" :ref-id="id" />
 
-      <div class="stats">
-        <div class="stat" :class="item.quantity <= 0 ? 'red' : item.low ? 'orange' : 'green'">
-          <span class="stat-label">En stock</span><span class="stat-value">{{ fmtNum(item.quantity) }}</span>
-          <span class="stat-sub">minimum {{ fmtNum(item.min_stock) }}</span>
-        </div>
-        <div class="stat yellow">
-          <span class="stat-label">Prix de vente</span><span class="stat-value">{{ money(item.sale_price) }}</span>
-          <span class="stat-sub">achat {{ money(item.purchase_price) }} · marge {{ money(margin) }}<template v-if="marginPct !== null"> ({{ marginPct }} %)</template></span>
-        </div>
-      </div>
+      <ListGroup header="Détails">
+        <ListRow v-if="item.voltage" title="Tension" :value="item.voltage" />
+        <ListRow v-if="item.power" title="Puissance" :value="item.power" />
+        <ListRow v-if="item.location" title="Emplacement" :value="item.location" />
+        <ListRow title="Prix d'achat" :value="money(item.purchase_price)" />
+        <ListRow v-if="item.vehicle_types" title="Compatible" :value="item.vehicle_types.split(',').map((v) => VEHICLE[v]?.emoji + ' ' + (VEHICLE[v]?.short || v)).join('  ')" />
+        <ListRow v-if="item.supplier_name" :to="`/fournisseurs/${item.supplier_id}`" title="Fournisseur" :value="item.supplier_name" />
+        <div v-if="item.notes" class="cell text-cell" style="display: block"><span class="t-label">Notes techniques</span>{{ item.notes }}</div>
+      </ListGroup>
 
-      <div class="card stack">
-        <div class="card-title">Mouvement de stock rapide</div>
-        <div class="row">
-          <button class="btn btn-icon btn-danger" @click="adjust(-1)">−</button>
-          <input v-model.number="delta" class="grow center" type="number" min="0" step="any" inputmode="decimal" />
-          <button class="btn btn-icon btn-success" @click="adjust(1)">+</button>
-        </div>
-        <input v-model="note" placeholder="Motif (facultatif) — ex : inventaire, casse…" />
-      </div>
+      <ListGroup header="Historique des mouvements">
+        <ListRow
+          v-for="m in item.movements" :key="m.id" :to="m.ref_type && REF_ROUTE[m.ref_type] ? REF_ROUTE[m.ref_type] + m.ref_id : undefined"
+          :title="`${REASONS[m.reason] || m.reason}${m.ref_id ? ' #' + m.ref_id : ''}`" :subtitle="[fmtDate(m.created_at, true), m.note].filter(Boolean).join(' · ')" :chevron="false"
+        >
+          <template #trailing><span class="bold num" :class="m.delta > 0 ? 'c-green' : 'c-red'">{{ m.delta > 0 ? '+' : '' }}{{ fmtNum(m.delta) }}</span></template>
+        </ListRow>
+        <div v-if="!item.movements.length" class="cell secondary">Aucun mouvement</div>
+      </ListGroup>
 
-      <div class="card">
-        <dl class="kv" style="margin: 0">
-          <template v-if="item.category"><dt>Catégorie</dt><dd>{{ item.category }}</dd></template>
-          <template v-if="item.reference"><dt>Référence</dt><dd>{{ item.reference }}</dd></template>
-          <template v-if="item.voltage"><dt>Tension</dt><dd>{{ item.voltage }}</dd></template>
-          <template v-if="item.power"><dt>Puissance</dt><dd>{{ item.power }}</dd></template>
-          <template v-if="item.location"><dt>Emplacement</dt><dd>📍 {{ item.location }}</dd></template>
-          <template v-if="item.vehicle_types"><dt>Compatible</dt><dd>{{ item.vehicle_types.split(',').map((v) => VEHICLE[v]?.icon + ' ' + (VEHICLE[v]?.short || v)).join(', ') }}</dd></template>
-          <template v-if="item.supplier_name"><dt>Fournisseur</dt><dd><router-link :to="`/fournisseurs/${item.supplier_id}`">{{ item.supplier_name }}</router-link></dd></template>
-        </dl>
-        <div v-if="item.notes" class="block-text small" style="margin-top: 10px">{{ item.notes }}</div>
-      </div>
-
-      <div class="section-title">Historique des mouvements</div>
-      <div class="card">
-        <div v-for="m in item.movements" :key="m.id" class="row" style="padding: 8px 0; border-bottom: 1px solid var(--border)">
-          <div class="grow">
-            <div class="small strong">
-              <router-link v-if="m.ref_type && REF_ROUTE[m.ref_type]" :to="REF_ROUTE[m.ref_type] + m.ref_id">{{ REASONS[m.reason] || m.reason }} #{{ m.ref_id }}</router-link>
-              <template v-else>{{ REASONS[m.reason] || m.reason }}</template>
-            </div>
-            <div class="tiny muted">{{ fmtDate(m.created_at, true) }}<template v-if="m.note"> · {{ m.note }}</template></div>
-          </div>
-          <span class="strong" :class="m.delta > 0 ? 'text-green' : 'text-red'">{{ m.delta > 0 ? '+' : '' }}{{ fmtNum(m.delta) }}</span>
-        </div>
-        <div v-if="!item.movements.length" class="muted small">Aucun mouvement</div>
-      </div>
-
-      <button class="btn btn-danger" style="margin-top: 16px" @click="remove">Supprimer l'article</button>
-    </div>
+      <ListGroup>
+        <ListRow title="Supprimer l'article" destructive @click="remove" />
+      </ListGroup>
+    </template>
   </div>
 </template>

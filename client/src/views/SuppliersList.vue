@@ -1,9 +1,15 @@
 <script setup>
-import { ref, watch, onMounted } from 'vue';
+import { ref, watch, onActivated } from 'vue';
+import { Plus, Truck, PackagePlus } from 'lucide-vue-next';
 import { api } from '../api.js';
-import { fmtDate, toastError } from '../store.js';
-import PageHeader from '../components/PageHeader.vue';
+import { fmtDate } from '../store.js';
+import { toastError } from '../ui.js';
+import NavBar from '../components/NavBar.vue';
+import ListGroup from '../components/ListGroup.vue';
+import ListRow from '../components/ListRow.vue';
+import SearchField from '../components/SearchField.vue';
 import EmptyState from '../components/EmptyState.vue';
+import Skeleton from '../components/Skeleton.vue';
 
 const q = ref('');
 const list = ref(null);
@@ -16,35 +22,32 @@ async function load() {
     toastError(e);
   }
 }
-onMounted(load);
+onActivated(load);
 watch(q, () => {
   clearTimeout(timer);
-  timer = setTimeout(load, 200);
+  timer = setTimeout(load, 180);
 });
 </script>
 
 <template>
   <div class="page">
-    <PageHeader title="📇 Fournisseurs" back="/plus">
-      <router-link to="/achats/nouveau" class="btn btn-sm">➕ Achat</router-link>
-    </PageHeader>
-    <div class="stack">
-      <input v-model="q" type="search" placeholder="🔍 Nom, téléphone…" />
-      <div v-if="list" class="list">
-        <router-link v-for="s in list" :key="s.id" :to="`/fournisseurs/${s.id}`" class="list-item">
-          <div class="thumb">📇</div>
-          <div class="grow">
-            <div class="title ellipsis">{{ s.name }}</div>
-            <div class="sub ellipsis">{{ s.phone || s.whatsapp || '—' }}</div>
-          </div>
-          <div class="right tiny muted">
-            <div>{{ s.purchases_count }} achat(s)</div>
-            <div v-if="s.last_purchase_at">{{ fmtDate(s.last_purchase_at) }}</div>
-          </div>
-        </router-link>
-        <EmptyState v-if="!list.length" icon="📇" text="Aucun fournisseur" />
-      </div>
-    </div>
-    <router-link to="/fournisseurs/nouveau" class="fab">➕ Fournisseur</router-link>
+    <NavBar title="Fournisseurs" large back="/plus" :refresh="load">
+      <router-link to="/fournisseurs/nouveau" class="nav-icon filled" aria-label="Nouveau fournisseur"><Plus :size="20" :stroke-width="2.6" /></router-link>
+    </NavBar>
+    <SearchField v-model="q" placeholder="Nom, téléphone" />
+    <ListGroup>
+      <ListRow to="/achats/nouveau" :icon="PackagePlus" tile="green" title="Enregistrer un achat" subtitle="Augmente le stock automatiquement" />
+    </ListGroup>
+    <Skeleton v-if="!list" :rows="4" :thumb="false" />
+    <ListGroup v-else-if="list.length">
+      <ListRow
+        v-for="s in list" :key="s.id" :to="`/fournisseurs/${s.id}`" :avatar="s.name" :title="s.name"
+        :subtitle="[s.phone || s.whatsapp, s.last_purchase_at && `dernier achat ${fmtDate(s.last_purchase_at)}`].filter(Boolean).join(' · ') || '—'"
+        :value="s.purchases_count ? `${s.purchases_count} achat(s)` : ''"
+      />
+    </ListGroup>
+    <EmptyState v-else :icon="Truck" title="Aucun fournisseur" text="Gardez les contacts WhatsApp de vos fournisseurs et l'historique de vos achats.">
+      <router-link to="/fournisseurs/nouveau" class="btn filled">Nouveau fournisseur</router-link>
+    </EmptyState>
   </div>
 </template>

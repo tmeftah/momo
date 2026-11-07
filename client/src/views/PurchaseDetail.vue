@@ -1,9 +1,14 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { Truck } from 'lucide-vue-next';
 import { api } from '../api.js';
-import { money, fmtNum, fmtDate, toast, toastError } from '../store.js';
-import PageHeader from '../components/PageHeader.vue';
+import { money, fmtNum, fmtDate } from '../store.js';
+import { toast, toastError, confirmAction } from '../ui.js';
+import NavBar from '../components/NavBar.vue';
+import ListGroup from '../components/ListGroup.vue';
+import ListRow from '../components/ListRow.vue';
+import Skeleton from '../components/Skeleton.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -19,7 +24,7 @@ onMounted(async () => {
 });
 
 async function remove() {
-  if (!confirm(`Annuler l'achat #${id} ? Les quantités seront retirées du stock.`)) return;
+  if (!(await confirmAction('Les quantités seront retirées du stock.', { title: `Annuler l'achat #${id} ?`, confirm: "Annuler l'achat" }))) return;
   try {
     await api.del(`/purchases/${id}`);
     toast('Achat annulé');
@@ -32,32 +37,30 @@ async function remove() {
 
 <template>
   <div class="page">
-    <PageHeader :title="`📦 Achat #${id}`" back />
-    <div v-if="p" class="stack">
-      <div class="card">
-        <dl class="kv" style="margin: 0">
-          <dt>Fournisseur</dt>
-          <dd><router-link v-if="p.supplier_id" :to="`/fournisseurs/${p.supplier_id}`">{{ p.supplier_name }}</router-link><template v-else>—</template></dd>
-          <template v-if="p.reference"><dt>Référence</dt><dd>{{ p.reference }}</dd></template>
-          <dt>Date</dt><dd>{{ fmtDate(p.created_at, true) }}</dd>
-        </dl>
+    <NavBar :reveal-at="100" :title="`Achat #${id}`" back />
+    <Skeleton v-if="!p" :rows="3" />
+    <template v-else>
+      <div class="hero" style="padding: 12px 0 4px">
+        <div class="footnote secondary">Achat #{{ p.id }} · {{ fmtDate(p.created_at, true) }}</div>
+        <div class="hero-amount">{{ money(p.total) }}</div>
       </div>
-      <div class="card">
-        <table class="table">
-          <thead><tr><th>Article</th><th class="right">Qté</th><th class="right">P.U.</th><th class="right">Total</th></tr></thead>
-          <tbody>
-            <tr v-for="l in p.lines" :key="l.id">
-              <td><router-link v-if="l.item_id" :to="`/stock/${l.item_id}`">{{ l.name }}</router-link><template v-else>{{ l.name }}</template></td>
-              <td class="right">{{ fmtNum(l.qty) }}</td>
-              <td class="right">{{ money(l.unit_cost) }}</td>
-              <td class="right strong">{{ money(l.qty * l.unit_cost) }}</td>
-            </tr>
-          </tbody>
-        </table>
-        <div class="totals" style="margin-top: 10px"><div class="line"><span>Total</span><span class="grand">{{ money(p.total) }}</span></div></div>
-      </div>
-      <div v-if="p.notes" class="card small">{{ p.notes }}</div>
-      <button class="btn btn-danger" @click="remove">↩️ Annuler l'achat (retirer du stock)</button>
-    </div>
+      <ListGroup>
+        <ListRow v-if="p.supplier_id" :to="`/fournisseurs/${p.supplier_id}`" :icon="Truck" tile="indigo" title="Fournisseur" :value="p.supplier_name" />
+        <ListRow v-else :icon="Truck" tile="gray" title="Fournisseur" value="—" />
+        <ListRow v-if="p.reference" title="N° de facture" :value="p.reference" />
+      </ListGroup>
+      <ListGroup header="Articles">
+        <ListRow
+          v-for="l in p.lines" :key="l.id" :to="l.item_id ? `/stock/${l.item_id}` : undefined" :thumb="l.photo || null"
+          :title="l.name" :subtitle="`${fmtNum(l.qty)} × ${money(l.unit_cost)}`" :chevron="false"
+        >
+          <template #trailing><span class="bold num">{{ money(l.qty * l.unit_cost) }}</span></template>
+        </ListRow>
+      </ListGroup>
+      <ListGroup v-if="p.notes" header="Note"><div class="cell text-cell">{{ p.notes }}</div></ListGroup>
+      <ListGroup>
+        <ListRow title="Annuler l'achat et retirer du stock" destructive @click="remove" />
+      </ListGroup>
+    </template>
   </div>
 </template>

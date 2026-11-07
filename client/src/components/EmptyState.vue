@@ -1,11 +1,12 @@
 <script setup>
-defineProps({ icon: { type: String, default: '📭' }, text: String });
+defineProps({ icon: [Object, Function], title: String, text: String });
 </script>
 
 <template>
   <div class="empty">
-    <div class="big">{{ icon }}</div>
-    <div>{{ text }}</div>
-    <div style="margin-top: 12px"><slot /></div>
+    <div v-if="icon" class="e-icon"><component :is="icon" :size="30" :stroke-width="1.8" /></div>
+    <div v-if="title" class="e-title">{{ title }}</div>
+    <div v-if="text" class="e-text">{{ text }}</div>
+    <div v-if="$slots.default" class="e-action"><slot /></div>
   </div>
 </template>

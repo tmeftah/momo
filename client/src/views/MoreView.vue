@@ -1,28 +1,39 @@
 <script setup>
-import PageHeader from '../components/PageHeader.vue';
+import { BatteryCharging, Activity, CalendarDays, Cable, BookOpen, Wallet, Receipt, Truck, Settings, Lock } from 'lucide-vue-next';
+import { useRouter } from 'vue-router';
+import { api, session } from '../api.js';
+import NavBar from '../components/NavBar.vue';
+import ListGroup from '../components/ListGroup.vue';
+import ListRow from '../components/ListRow.vue';
 
-const tiles = [
-  { to: '/batteries', icon: '🔋', label: 'Batteries', sub: 'Packs lithium, outils' },
-  { to: '/diagnostics', icon: '⚡', label: 'Diagnostic', sub: 'Diagnostics facturables' },
-  { to: '/connecteurs', icon: '🔌', label: 'Connecteurs', sub: 'Brochages & adaptations' },
-  { to: '/base', icon: '📚', label: 'Base technique', sub: 'Mes solutions de dépannage' },
-  { to: '/fournisseurs', icon: '📇', label: 'Fournisseurs', sub: 'Achats & réassort' },
-  { to: '/planning', icon: '📅', label: 'Planning', sub: 'Vue atelier par statut' },
-  { to: '/caisse', icon: '💰', label: 'Caisse', sub: 'Recettes, crédits, marges' },
-  { to: '/ventes', icon: '🧾', label: 'Historique ventes', sub: 'Toutes les ventes' },
-  { to: '/parametres', icon: '⚙️', label: 'Paramètres', sub: 'PIN, sauvegarde, export' },
-];
+const router = useRouter();
+async function lock() {
+  await api.post('/auth/logout').catch(() => {});
+  session.authenticated = false;
+  router.replace('/login');
+}
 </script>
 
 <template>
   <div class="page">
-    <PageHeader title="Plus" />
-    <div class="grid-2">
-      <router-link v-for="t in tiles" :key="t.to" :to="t.to" class="quick-action" style="min-height: 110px">
-        <span class="qa-icon">{{ t.icon }}</span>
-        <span>{{ t.label }}</span>
-        <span class="tiny muted" style="font-weight: 500">{{ t.sub }}</span>
-      </router-link>
-    </div>
+    <NavBar title="Plus" large />
+    <ListGroup header="Atelier">
+      <ListRow to="/batteries" :icon="BatteryCharging" tile="green" title="Batteries lithium" />
+      <ListRow to="/diagnostics" :icon="Activity" tile="teal" title="Diagnostics" />
+      <ListRow to="/planning" :icon="CalendarDays" tile="red" title="Planning" />
+    </ListGroup>
+    <ListGroup header="Bibliothèque">
+      <ListRow to="/connecteurs" :icon="Cable" tile="purple" title="Connecteurs & adaptations" />
+      <ListRow to="/base" :icon="BookOpen" tile="orange" title="Base technique" />
+    </ListGroup>
+    <ListGroup header="Commerce">
+      <ListRow to="/caisse" :icon="Wallet" tile="green" title="Caisse" />
+      <ListRow to="/ventes" :icon="Receipt" tile="yellow" title="Historique des ventes" />
+      <ListRow to="/fournisseurs" :icon="Truck" tile="indigo" title="Fournisseurs & achats" />
+    </ListGroup>
+    <ListGroup>
+      <ListRow to="/parametres" :icon="Settings" tile="gray" title="Réglages" />
+      <ListRow :icon="Lock" tile="blue" title="Verrouiller" @click="lock" />
+    </ListGroup>
   </div>
 </template>

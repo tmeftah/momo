@@ -1,19 +1,23 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onActivated } from 'vue';
 import { useRoute } from 'vue-router';
+import { Plus, CalendarDays, Activity, Wrench, BatteryCharging } from 'lucide-vue-next';
 import { api } from '../api.js';
 import { REPAIR_STATUSES, REPAIR_CATEGORIES } from '../constants.js';
-import { toastError } from '../store.js';
-import PageHeader from '../components/PageHeader.vue';
+import { toastError } from '../ui.js';
+import NavBar from '../components/NavBar.vue';
+import ListGroup from '../components/ListGroup.vue';
 import ChipSelect from '../components/ChipSelect.vue';
-import RepairCard from '../components/RepairCard.vue';
+import RepairRow from '../components/RepairRow.vue';
+import SearchField from '../components/SearchField.vue';
 import EmptyState from '../components/EmptyState.vue';
+import Skeleton from '../components/Skeleton.vue';
 
 const props = defineProps({ category: String });
 const route = useRoute();
 
-const status = ref(route.query.status || 'actives');
-const cat = ref(props.category || route.query.category || null);
+const status = ref('actives');
+const cat = ref(props.category || null);
 const q = ref('');
 const repairs = ref(null);
 const open = ref([]);
@@ -27,51 +31,59 @@ const counts = computed(() => {
 });
 const statusOptions = computed(() => [
   { value: 'actives', label: 'Actives', count: open.value.length },
-  ...REPAIR_STATUSES.filter((s) => s.value !== 'livree').map((s) => ({ ...s, count: counts.value[s.value] || 0 })),
-  { value: 'livree', label: 'Livrées', icon: '🏁' },
+  ...REPAIR_STATUSES.filter((s) => s.value !== 'livree').map((s) => ({ value: s.value, label: s.label, count: counts.value[s.value] || 0 })),
+  { value: 'livree', label: 'Livrées' },
   { value: 'toutes', label: 'Toutes' },
 ]);
+const catOptions = REPAIR_CATEGORIES.map((c) => ({ value: c.value, label: c.short || c.label, icon: c.icon }));
 
 async function load() {
   try {
     const params = { q: q.value, category: cat.value };
     if (status.value === 'actives') params.open = 1;
     else if (status.value !== 'toutes') params.status = status.value;
-    repairs.value = await api.get('/repairs', params);
+    const [list, active] = await Promise.all([api.get('/repairs', params), api.get('/repairs', { open: 1, category: cat.value })]);
+    repairs.value = list;
+    open.value = active;
   } catch (e) {
     toastError(e);
   }
 }
-async function loadCounts() {
-  open.value = await api.get('/repairs', { open: 1, category: cat.value }).catch(() => []);
-}
-onMounted(() => {
-  load();
-  loadCounts();
+
+onActivated(() => {
+  // Links from the dashboard (e.g. /atelier?status=en_pause) preselect a filter
+  if (route.query.status && route.query.status !== status.value) status.value = route.query.status;
+  else load();
 });
 watch([status, cat, q], () => {
   clearTimeout(timer);
-  timer = setTimeout(load, 200);
+  timer = setTimeout(load, 160);
 });
-watch(cat, loadCounts);
 </script>
 
 <template>
   <div class="page">
-    <PageHeader :title="isBattery ? '🔋 Batteries lithium' : '🔧 Atelier'" :back="isBattery ? '/plus' : false">
-      <router-link v-if="!isBattery" to="/diagnostics" class="btn btn-sm">⚡ Diagnostics</router-link>
-      <router-link to="/planning" class="btn btn-sm">📅</router-link>
-    </PageHeader>
-    <div class="stack">
-      <p v-if="isBattery" class="small muted" style="margin: 0">Packs de vélos, trottinettes, scooters et batteries d'outils / visseuses : diagnostic, équilibrage, reconstruction, BMS, tests.</p>
-      <input v-model="q" type="search" placeholder="🔍 Client, marque, modèle, n° de série, #…" />
+    <NavBar :title="isBattery ? 'Batteries' : 'Atelier'" large :back="isBattery ? '/plus' : false" :refresh="load"
+      :subtitle="isBattery ? 'Packs lithium : vélos, trottinettes, scooters, outils' : undefined">
+      <router-link v-if="!isBattery" to="/diagnostics" class="nav-icon" aria-label="Diagnostics"><Activity :size="18" :stroke-width="2.3" /></router-link>
+      <router-link to="/planning" class="nav-icon" aria-label="Planning"><CalendarDays :size="18" :stroke-width="2.2" /></router-link>
+      <router-link :to="`/reparations/nouvelle${cat ? '?category=' + cat : ''}`" class="nav-icon filled" aria-label="Nouvelle réparation"><Plus :size="20" :stroke-width="2.6" /></router-link>
+    </NavBar>
+
+    <div class="vstack" style="gap: 10px">
+      <SearchField v-model="q" placeholder="Client, marque, modèle, n° de série" />
       <ChipSelect v-model="status" :options="statusOptions" scroll />
-      <ChipSelect v-if="!isBattery" v-model="cat" :options="REPAIR_CATEGORIES" allow-empty scroll yellow />
-      <div v-if="repairs" class="list">
-        <RepairCard v-for="r in repairs" :key="r.id" :repair="r" />
-        <EmptyState v-if="!repairs.length" :icon="isBattery ? '🔋' : '🔧'" text="Aucune intervention" />
-      </div>
+      <ChipSelect v-if="!isBattery" v-model="cat" :options="catOptions" allow-empty scroll />
     </div>
-    <router-link :to="`/reparations/nouvelle${cat ? '?category=' + cat : ''}`" class="fab">➕ {{ isBattery ? 'Batterie' : 'Réparation' }}</router-link>
+
+    <Skeleton v-if="!repairs" :rows="6" />
+    <template v-else>
+      <ListGroup v-if="repairs.length">
+        <RepairRow v-for="r in repairs" :key="r.id" :repair="r" />
+      </ListGroup>
+      <EmptyState v-else :icon="isBattery ? BatteryCharging : Wrench" title="Rien ici" :text="q ? 'Aucun résultat pour cette recherche.' : 'Aucune intervention avec ce filtre.'">
+        <router-link :to="`/reparations/nouvelle${cat ? '?category=' + cat : ''}`" class="btn filled">{{ isBattery ? 'Nouvelle batterie' : 'Nouvelle réparation' }}</router-link>
+      </EmptyState>
+    </template>
   </div>
 </template>

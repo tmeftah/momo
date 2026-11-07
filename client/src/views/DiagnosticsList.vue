@@ -1,10 +1,17 @@
 <script setup>
-import { ref, watch, onMounted } from 'vue';
+import { ref, watch, onActivated } from 'vue';
+import { Plus, Activity } from 'lucide-vue-next';
 import { api } from '../api.js';
-import { money, fmtRelative, toastError, vehicleLabel } from '../store.js';
-import PageHeader from '../components/PageHeader.vue';
-import StatusBadge from '../components/StatusBadge.vue';
+import { money, fmtRelative, vehicleName, vehicleEmoji } from '../store.js';
+import { toastError } from '../ui.js';
+import NavBar from '../components/NavBar.vue';
+import ListGroup from '../components/ListGroup.vue';
+import ListRow from '../components/ListRow.vue';
+import Segmented from '../components/Segmented.vue';
+import SearchField from '../components/SearchField.vue';
+import StatusPill from '../components/StatusPill.vue';
 import EmptyState from '../components/EmptyState.vue';
+import Skeleton from '../components/Skeleton.vue';
 
 const filter = ref('1');
 const q = ref('');
@@ -18,41 +25,39 @@ async function load() {
     toastError(e);
   }
 }
-onMounted(load);
+onActivated(load);
 watch([filter, q], () => {
   clearTimeout(timer);
-  timer = setTimeout(load, 200);
+  timer = setTimeout(load, 180);
 });
 </script>
 
 <template>
   <div class="page">
-    <PageHeader title="⚡ Diagnostics" back="/plus" />
-    <div class="stack">
-      <p class="small muted" style="margin: 0">Diagnostic facturé séparément : même si le client abandonne la réparation, le temps passé est payé.</p>
-      <input v-model="q" type="search" placeholder="🔍 Client, marque, symptôme…" />
-      <div class="chips">
-        <button class="chip" :class="{ active: filter === '1' }" @click="filter = '1'">⚡ En cours</button>
-        <button class="chip" :class="{ active: filter === '0' }" @click="filter = '0'">Terminés</button>
-        <button class="chip" :class="{ active: filter === '' }" @click="filter = ''">Tous</button>
-      </div>
-      <div v-if="list" class="list">
-        <router-link v-for="d in list" :key="d.id" :to="`/diagnostics/${d.id}`" class="list-item" :class="{ urgent: d.priority === 'urgent' && !d.decision }">
-          <div class="thumb">⚡</div>
-          <div class="grow">
-            <div class="title ellipsis">{{ vehicleLabel(d) }}</div>
-            <div class="sub ellipsis">#{{ d.id }} · {{ d.client_name || 'Sans client' }} · {{ fmtRelative(d.created_at) }}</div>
-            <div class="sub ellipsis">{{ d.fault_found || d.symptoms }}</div>
-            <StatusBadge :decision="d.decision" />
-          </div>
-          <div class="right">
-            <div class="strong">{{ money(d.price) }}</div>
-            <div v-if="d.balance > 0.009 && d.decision" class="tiny text-orange">doit {{ money(d.balance) }}</div>
-          </div>
-        </router-link>
-        <EmptyState v-if="!list.length" icon="⚡" text="Aucun diagnostic" />
-      </div>
+    <NavBar title="Diagnostics" large back="/plus" :refresh="load" subtitle="Facturés séparément, même si le client abandonne">
+      <router-link to="/diagnostics/nouveau" class="nav-icon filled" aria-label="Nouveau diagnostic"><Plus :size="20" :stroke-width="2.6" /></router-link>
+    </NavBar>
+    <div class="vstack">
+      <SearchField v-model="q" placeholder="Client, marque, symptôme" />
+      <Segmented v-model="filter" :options="[{ value: '1', label: 'En cours' }, { value: '0', label: 'Terminés' }, { value: '', label: 'Tous' }]" />
     </div>
-    <router-link to="/diagnostics/nouveau" class="fab">➕ Diagnostic</router-link>
+    <Skeleton v-if="!list" :rows="5" />
+    <ListGroup v-else-if="list.length">
+      <ListRow v-for="d in list" :key="d.id" :to="`/diagnostics/${d.id}`" style="--inset: 72px">
+        <template #leading><span class="thumb">{{ vehicleEmoji(d) }}</span></template>
+        <div class="cell-title"><span v-if="d.priority === 'urgent' && !d.decision" class="c-red" style="font-weight: 800">! </span>{{ vehicleName(d) }}</div>
+        <div class="cell-sub">{{ d.fault_found || d.symptoms || '—' }}</div>
+        <div class="cell-sub">{{ d.client_name || 'Sans client' }} · {{ fmtRelative(d.created_at) }}</div>
+        <template #trailing>
+          <div class="cell-trail">
+            <span class="subhead bold num">{{ money(d.price) }}</span>
+            <StatusPill :decision="d.decision" short />
+          </div>
+        </template>
+      </ListRow>
+    </ListGroup>
+    <EmptyState v-else :icon="Activity" title="Aucun diagnostic" text="Un diagnostic se facture seul et se transforme en réparation en un geste.">
+      <router-link to="/diagnostics/nouveau" class="btn filled">Nouveau diagnostic</router-link>
+    </EmptyState>
   </div>
 </template>

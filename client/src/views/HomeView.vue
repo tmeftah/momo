@@ -1,110 +1,121 @@
 <script setup>
-import { ref, onMounted } from 'vue';
-import { api, fileUrl } from '../api.js';
-import { money, fmtNum, settings, toastError } from '../store.js';
-import RepairCard from '../components/RepairCard.vue';
+import { ref, computed, onActivated } from 'vue';
+import {
+  Wrench, Zap, ShoppingCart, UserPlus, PackagePlus, CalendarDays, Pause, PackageSearch,
+  CircleCheckBig, TriangleAlert, Banknote, CreditCard, Activity,
+} from 'lucide-vue-next';
+import { api } from '../api.js';
+import { money, fmtNum, settings } from '../store.js';
+import { toastError } from '../ui.js';
+import NavBar from '../components/NavBar.vue';
+import ListGroup from '../components/ListGroup.vue';
+import ListRow from '../components/ListRow.vue';
+import RepairRow from '../components/RepairRow.vue';
+import Skeleton from '../components/Skeleton.vue';
 
 const d = ref(null);
-onMounted(async () => {
+async function load() {
   try {
     d.value = await api.get('/dashboard');
   } catch (e) {
     toastError(e);
   }
-});
+}
+onActivated(load);
+
+const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+const greeting = computed(() => (new Date().getHours() < 18 ? 'Bonjour' : 'Bonsoir'));
 
 const quick = [
-  { to: '/reparations/nouvelle', icon: '🔧', label: 'Nouvelle réparation', cls: 'primary' },
-  { to: '/diagnostics/nouveau', icon: '⚡', label: 'Nouveau diagnostic', cls: '' },
-  { to: '/vente', icon: '🛒', label: 'Nouvelle vente', cls: 'accent' },
-  { to: '/clients/nouveau', icon: '👤', label: 'Nouveau client', cls: '' },
-  { to: '/stock/ajout', icon: '📦', label: 'Ajouter stock', cls: '' },
+  { to: '/reparations/nouvelle', icon: Wrench, label: 'Réparation', color: 'var(--blue)' },
+  { to: '/diagnostics/nouveau', icon: Zap, label: 'Diagnostic', color: 'var(--teal)' },
+  { to: '/vente', icon: ShoppingCart, label: 'Vente', color: 'var(--yellow)', dark: true },
+  { to: '/clients/nouveau', icon: UserPlus, label: 'Client', color: 'var(--green)' },
+  { to: '/stock/ajout', icon: PackagePlus, label: 'Stock', color: 'var(--orange)' },
 ];
 </script>
 
 <template>
   <div class="page">
-    <header class="page-header">
-      <div class="grow">
-        <div class="brand" style="font-size: 1.25rem">🔑 <i>VAE</i> <b>Manager</b></div>
-        <div class="tiny muted">{{ settings.shop_name }}</div>
-      </div>
-      <router-link to="/planning" class="btn btn-sm">📅 Planning</router-link>
-    </header>
+    <NavBar :title="greeting" large :eyebrow="today" :subtitle="settings.shop_name" :refresh="load">
+      <router-link to="/planning" class="nav-icon" aria-label="Planning"><CalendarDays :size="18" :stroke-width="2.2" /></router-link>
+    </NavBar>
 
-    <div class="quick-actions">
-      <router-link v-for="q in quick" :key="q.to" :to="q.to" class="quick-action" :class="q.cls">
-        <span class="qa-icon">{{ q.icon }}</span>{{ q.label }}
+    <div class="quick">
+      <router-link v-for="q in quick" :key="q.to" :to="q.to">
+        <span class="q-icon" :style="{ background: q.color, color: q.dark ? 'var(--on-yellow)' : '#fff' }"><component :is="q.icon" :size="25" :stroke-width="2.1" /></span>
+        {{ q.label }}
       </router-link>
     </div>
 
     <template v-if="d">
-      <div class="section-title">Atelier</div>
-      <div class="stats grid-4-md">
-        <router-link to="/atelier?status=en_cours" class="stat blue">
-          <span class="stat-label">🔧 En cours</span><span class="stat-value">{{ d.repairs.en_cours || 0 }}</span>
-          <span class="stat-sub">{{ d.repairs.en_attente || 0 }} en attente · {{ d.repairs.en_test || 0 }} en test</span>
+      <div class="lg-header big mt">Atelier</div>
+      <div class="widgets four">
+        <router-link to="/atelier?status=en_cours" class="widget">
+          <div class="w-glow" style="background: var(--blue)" />
+          <div class="w-head" style="color: var(--blue)"><Wrench :size="16" :stroke-width="2.4" />En cours</div>
+          <div class="w-value">{{ d.repairs.en_cours || 0 }}</div>
+          <div class="w-sub">{{ d.repairs.en_attente || 0 }} en attente · {{ d.repairs.en_test || 0 }} en test</div>
         </router-link>
-        <router-link to="/atelier?status=en_pause" class="stat orange">
-          <span class="stat-label">⏸️ En pause</span><span class="stat-value">{{ d.repairs.en_pause || 0 }}</span>
+        <router-link to="/atelier?status=en_pause" class="widget">
+          <div class="w-head" style="color: var(--orange)"><Pause :size="16" :stroke-width="2.4" />En pause</div>
+          <div class="w-value">{{ d.repairs.en_pause || 0 }}</div>
+          <div class="w-sub">réparations</div>
         </router-link>
-        <router-link to="/atelier?status=attente_piece" class="stat purple">
-          <span class="stat-label">📦 Attente pièces</span><span class="stat-value">{{ d.repairs.attente_piece || 0 }}</span>
+        <router-link to="/atelier?status=attente_piece" class="widget">
+          <div class="w-head" style="color: var(--purple)"><PackageSearch :size="16" :stroke-width="2.4" />Attente pièces</div>
+          <div class="w-value">{{ d.repairs.attente_piece || 0 }}</div>
+          <div class="w-sub">réparations</div>
         </router-link>
-        <router-link to="/diagnostics" class="stat cyan">
-          <span class="stat-label">⚡ Diagnostics en cours</span><span class="stat-value">{{ d.diagnostics_open }}</span>
+        <router-link to="/diagnostics" class="widget">
+          <div class="w-head" style="color: var(--teal)"><Activity :size="16" :stroke-width="2.4" />Diagnostics</div>
+          <div class="w-value">{{ d.diagnostics_open }}</div>
+          <div class="w-sub">en cours</div>
         </router-link>
-        <router-link to="/atelier?status=terminee" class="stat green">
-          <span class="stat-label">✅ À récupérer</span><span class="stat-value">{{ d.to_collect }}</span>
+        <router-link to="/atelier?status=terminee" class="widget">
+          <div class="w-head" style="color: var(--green)"><CircleCheckBig :size="16" :stroke-width="2.4" />À récupérer</div>
+          <div class="w-value">{{ d.to_collect }}</div>
+          <div class="w-sub">véhicules prêts</div>
         </router-link>
-        <router-link to="/stock?low=1" class="stat" :class="d.low_stock.count ? 'red' : ''">
-          <span class="stat-label">⚠️ Stock faible</span><span class="stat-value">{{ d.low_stock.count }}</span>
-          <span class="stat-sub">articles sous le minimum</span>
-        </router-link>
-      </div>
-
-      <div class="section-title">Caisse du jour</div>
-      <div class="stats grid-4-md">
-        <router-link to="/ventes" class="stat yellow">
-          <span class="stat-label">🛒 Ventes du jour</span><span class="stat-value">{{ money(d.sales_today.total) }}</span>
-          <span class="stat-sub">{{ d.sales_today.count }} vente(s)</span>
-        </router-link>
-        <router-link to="/caisse" class="stat green">
-          <span class="stat-label">💵 Argent encaissé</span><span class="stat-value">{{ money(d.cash_today.total) }}</span>
-          <span class="stat-sub">dont espèces {{ money(d.cash_today.especes || 0) }}</span>
-        </router-link>
-        <router-link to="/caisse#credits" class="stat orange">
-          <span class="stat-label">💳 Crédits clients</span><span class="stat-value">{{ money(d.credits.total) }}</span>
-          <span class="stat-sub">{{ d.credits.count }} document(s) impayé(s)</span>
+        <router-link to="/stock?low=1" class="widget">
+          <div class="w-head" :style="{ color: d.low_stock.count ? 'var(--red)' : 'var(--label-2)' }"><TriangleAlert :size="16" :stroke-width="2.4" />Stock faible</div>
+          <div class="w-value">{{ d.low_stock.count }}</div>
+          <div class="w-sub">sous le minimum</div>
         </router-link>
       </div>
 
-      <div class="section-title row between">
-        <span>Réparations actives</span>
-        <router-link to="/atelier" class="small">Tout voir ›</router-link>
-      </div>
-      <div class="list">
-        <RepairCard v-for="r in d.active" :key="r.id" :repair="r" />
-        <div v-if="!d.active.length" class="empty small">Aucune réparation active 🎉</div>
+      <div class="lg-header big mt">Aujourd'hui</div>
+      <div class="widgets">
+        <router-link to="/caisse" class="widget span2 hero-w">
+          <div class="w-glow" style="background: var(--green)" />
+          <div class="w-head" style="color: var(--green)"><Banknote :size="16" :stroke-width="2.4" />Argent encaissé</div>
+          <div class="w-value">{{ money(d.cash_today.total) }}</div>
+          <div class="w-sub">dont espèces {{ money(d.cash_today.especes || 0) }}</div>
+        </router-link>
+        <router-link to="/ventes" class="widget">
+          <div class="w-head" style="color: color-mix(in srgb, var(--yellow) 85%, var(--label))"><ShoppingCart :size="16" :stroke-width="2.4" />Ventes</div>
+          <div class="w-value" style="font-size: 24px">{{ money(d.sales_today.total) }}</div>
+          <div class="w-sub">{{ d.sales_today.count }} vente(s)</div>
+        </router-link>
+        <router-link to="/caisse#credits" class="widget">
+          <div class="w-head" style="color: var(--orange)"><CreditCard :size="16" :stroke-width="2.4" />Crédits clients</div>
+          <div class="w-value" style="font-size: 24px">{{ money(d.credits.total) }}</div>
+          <div class="w-sub">{{ d.credits.count }} impayé(s)</div>
+        </router-link>
       </div>
 
-      <template v-if="d.low_stock.items.length">
-        <div class="section-title row between">
-          <span>Stock faible</span>
-          <router-link to="/stock?low=1" class="small">Tout voir ›</router-link>
-        </div>
-        <div class="list">
-          <router-link v-for="i in d.low_stock.items" :key="i.id" :to="`/stock/${i.id}`" class="list-item">
-            <img v-if="i.photo" class="thumb" :src="fileUrl(i.photo)" alt="" />
-            <div v-else class="thumb">📦</div>
-            <div class="grow">
-              <div class="title ellipsis">{{ i.name }}</div>
-              <div class="sub">{{ i.category }}</div>
-            </div>
-            <span class="badge" :class="i.quantity <= 0 ? 'red' : 'orange'">{{ fmtNum(i.quantity) }} / min {{ fmtNum(i.min_stock) }}</span>
-          </router-link>
-        </div>
-      </template>
+      <ListGroup v-if="d.active.length" header="Réparations actives" class="mt">
+        <template #header-right><router-link to="/atelier">Tout voir</router-link></template>
+        <RepairRow v-for="r in d.active" :key="r.id" :repair="r" />
+      </ListGroup>
+
+      <ListGroup v-if="d.low_stock.items.length" header="Stock faible">
+        <template #header-right><router-link to="/stock?low=1">Tout voir</router-link></template>
+        <ListRow v-for="i in d.low_stock.items" :key="i.id" :to="`/stock/${i.id}`" :thumb="i.photo || null" :title="i.name" :subtitle="i.category">
+          <template #trailing><span class="pill" :class="i.quantity <= 0 ? 'red' : 'orange'">{{ fmtNum(i.quantity) }} / {{ fmtNum(i.min_stock) }}</span></template>
+        </ListRow>
+      </ListGroup>
     </template>
+    <Skeleton v-else :rows="4" />
   </div>
 </template>

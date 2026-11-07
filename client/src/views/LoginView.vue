@@ -1,17 +1,33 @@
 <script setup>
+// iOS-style passcode screen. Remembers the PIN length on this device to auto-submit.
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { api, session, checkSession } from '../api.js';
 import { loadSettings } from '../store.js';
+import { haptic } from '../ui.js';
 
 const route = useRoute();
 const router = useRouter();
 const pin = ref('');
 const firstPin = ref('');
 const error = ref('');
+const shake = ref(false);
 const busy = ref(false);
+const KEYS = [['1', ''], ['2', 'ABC'], ['3', 'DEF'], ['4', 'GHI'], ['5', 'JKL'], ['6', 'MNO'], ['7', 'PQRS'], ['8', 'TUV'], ['9', 'WXYZ']];
+
+const knownLength = (() => {
+  try {
+    return Number(localStorage.getItem('vae-pin-len')) || 0;
+  } catch {
+    return 0;
+  }
+})();
 const setupMode = computed(() => !session.configured);
-const title = computed(() => (!setupMode.value ? 'Entrez votre code PIN' : firstPin.value ? 'Confirmez le code PIN' : 'Choisissez un code PIN (6 chiffres conseillés)'));
+const dots = computed(() => Math.max(knownLength || 6, pin.value.length));
+const title = computed(() => {
+  if (!setupMode.value) return 'Saisissez le code';
+  return firstPin.value ? 'Confirmez le code' : 'Choisissez un code';
+});
 
 onMounted(async () => {
   await checkSession().catch(() => {});
@@ -22,39 +38,56 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 
 function onKey(e) {
   if (/^\d$/.test(e.key)) press(e.key);
-  else if (e.key === 'Backspace') pin.value = pin.value.slice(0, -1);
+  else if (e.key === 'Backspace') erase();
   else if (e.key === 'Enter') submit();
 }
 
 function press(d) {
+  if (busy.value || pin.value.length >= 12) return;
+  haptic('light');
   error.value = '';
-  if (pin.value.length < 12) pin.value += d;
+  pin.value += d;
+  if (!setupMode.value && knownLength && pin.value.length === knownLength) submit();
+}
+const erase = () => (pin.value = pin.value.slice(0, -1));
+
+function fail(msg) {
+  error.value = msg;
+  shake.value = true;
+  haptic('error');
+  setTimeout(() => {
+    shake.value = false;
+    pin.value = '';
+  }, 450);
 }
 
 async function submit() {
-  if (busy.value || pin.value.length < 4) return;
-  error.value = '';
+  if (busy.value) return;
+  if (pin.value.length < 4) return fail('Au moins 4 chiffres');
   if (setupMode.value && !firstPin.value) {
     firstPin.value = pin.value;
     pin.value = '';
     return;
   }
   if (setupMode.value && firstPin.value !== pin.value) {
-    error.value = 'Les deux codes ne correspondent pas';
     firstPin.value = '';
-    pin.value = '';
-    return;
+    return fail('Les codes ne correspondent pas');
   }
   busy.value = true;
   try {
     await api.post(setupMode.value ? '/auth/setup' : '/auth/login', { pin: pin.value });
+    try {
+      localStorage.setItem('vae-pin-len', String(pin.value.length));
+    } catch {
+      /* private mode */
+    }
+    haptic('success');
     session.authenticated = true;
     session.configured = true;
     await loadSettings().catch(() => {});
     router.replace(route.query.r || '/');
   } catch (e) {
-    error.value = e.message;
-    pin.value = '';
+    fail(e.message);
   } finally {
     busy.value = false;
   }
@@ -62,21 +95,20 @@ async function submit() {
 </script>
 
 <template>
-  <div class="login-wrap">
-    <div class="center" style="width: 100%; max-width: 360px">
-      <div style="font-size: 3rem">🔑</div>
-      <div class="brand"><i>VAE</i> <b>Manager</b></div>
-      <p class="muted">{{ title }}</p>
-      <div class="pin-dots">
-        <i v-for="n in Math.max(6, pin.length)" :key="n" :class="{ on: n <= pin.length }" />
-      </div>
-      <p v-if="error" class="text-red strong">{{ error }}</p>
-      <div class="pin-pad">
-        <button v-for="d in ['1', '2', '3', '4', '5', '6', '7', '8', '9']" :key="d" @click="press(d)">{{ d }}</button>
-        <button aria-label="Effacer" @click="pin = pin.slice(0, -1)">⌫</button>
-        <button @click="press('0')">0</button>
-        <button aria-label="Valider" :disabled="busy" style="background: var(--yellow); color: #111" @click="submit">✓</button>
-      </div>
+  <div class="passcode">
+    <img class="brandmark" src="/icon-192.png" alt="" />
+    <div class="title3" style="margin-top: 18px">{{ title }}</div>
+    <div class="footnote secondary" style="margin-top: 4px; min-height: 18px" :class="{ 'c-red': error }">
+      {{ error || (setupMode ? '6 chiffres conseillés' : 'VAE Manager') }}
+    </div>
+    <div class="dots" :class="{ shake }">
+      <i v-for="n in dots" :key="n" :class="{ on: n <= pin.length }" />
+    </div>
+    <div class="keypad">
+      <button v-for="[d, letters] in KEYS" :key="d" @click="press(d)">{{ d }}<small>{{ letters || '&nbsp;' }}</small></button>
+      <button class="ghost" :style="{ visibility: pin ? 'visible' : 'hidden' }" @click="erase">Effacer</button>
+      <button @click="press('0')">0<small>&nbsp;</small></button>
+      <button class="ghost tint" style="font-weight: 600" :disabled="busy" @click="submit">OK</button>
     </div>
   </div>
 </template>

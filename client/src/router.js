@@ -1,65 +1,62 @@
+import { reactive } from 'vue';
 import { createRouter, createWebHistory } from 'vue-router';
 import { session, checkSession } from './api.js';
 import { loadSettings } from './store.js';
 
 const v = (name) => () => import(`./views/${name}.vue`);
 
+// meta.title labels the back button of the next screen; meta.root marks tab roots
 const routes = [
-  { path: '/login', name: 'login', component: v('LoginView'), meta: { public: true, bare: true } },
-  { path: '/', name: 'home', component: v('HomeView'), meta: { tab: 'home' } },
+  { path: '/login', component: v('LoginView'), meta: { public: true, bare: true } },
+  { path: '/', component: v('HomeView'), meta: { tab: 'home', root: true, title: 'Accueil' } },
 
-  // Atelier (repairs of every kind)
-  { path: '/atelier', component: v('WorkshopView'), meta: { tab: 'atelier' } },
-  { path: '/batteries', component: v('WorkshopView'), props: { category: 'batterie' }, meta: { tab: 'plus' } },
-  { path: '/reparations/nouvelle', component: v('RepairForm'), meta: { tab: 'atelier' } },
-  { path: '/reparations/:id', component: v('RepairDetail'), meta: { tab: 'atelier' } },
-  { path: '/reparations/:id/modifier', component: v('RepairForm'), meta: { tab: 'atelier' } },
+  { path: '/atelier', component: v('WorkshopView'), meta: { tab: 'atelier', root: true, title: 'Atelier' } },
+  { path: '/batteries', component: v('WorkshopView'), props: { category: 'batterie' }, meta: { tab: 'plus', title: 'Batteries' } },
+  { path: '/reparations/nouvelle', component: v('RepairForm'), meta: { tab: 'atelier', title: 'Nouvelle' } },
+  { path: '/reparations/:id', component: v('RepairDetail'), meta: { tab: 'atelier', title: 'Réparation' } },
+  { path: '/reparations/:id/modifier', component: v('RepairForm'), meta: { tab: 'atelier', title: 'Modifier' } },
 
-  { path: '/diagnostics', component: v('DiagnosticsList'), meta: { tab: 'plus' } },
-  { path: '/diagnostics/nouveau', component: v('DiagnosticForm'), meta: { tab: 'plus' } },
-  { path: '/diagnostics/:id', component: v('DiagnosticDetail'), meta: { tab: 'plus' } },
-  { path: '/diagnostics/:id/modifier', component: v('DiagnosticForm'), meta: { tab: 'plus' } },
+  { path: '/diagnostics', component: v('DiagnosticsList'), meta: { tab: 'plus', title: 'Diagnostics' } },
+  { path: '/diagnostics/nouveau', component: v('DiagnosticForm'), meta: { tab: 'plus', title: 'Nouveau' } },
+  { path: '/diagnostics/:id', component: v('DiagnosticDetail'), meta: { tab: 'plus', title: 'Diagnostic' } },
+  { path: '/diagnostics/:id/modifier', component: v('DiagnosticForm'), meta: { tab: 'plus', title: 'Modifier' } },
 
-  // Stock
-  { path: '/stock', component: v('StockList'), meta: { tab: 'stock' } },
-  { path: '/stock/nouveau', component: v('ItemForm'), meta: { tab: 'stock' } },
-  { path: '/stock/ajout', component: v('StockAdd'), meta: { tab: 'stock' } },
-  { path: '/stock/:id', component: v('ItemDetail'), meta: { tab: 'stock' } },
-  { path: '/stock/:id/modifier', component: v('ItemForm'), meta: { tab: 'stock' } },
+  { path: '/stock', component: v('StockList'), meta: { tab: 'stock', root: true, title: 'Stock' } },
+  { path: '/stock/nouveau', component: v('ItemForm'), meta: { tab: 'stock', title: 'Nouvel article' } },
+  { path: '/stock/ajout', component: v('StockAdd'), meta: { tab: 'stock', title: 'Entrée' } },
+  { path: '/stock/:id', component: v('ItemDetail'), meta: { tab: 'stock', title: 'Article' } },
+  { path: '/stock/:id/modifier', component: v('ItemForm'), meta: { tab: 'stock', title: 'Modifier' } },
 
-  // Sales & cash
-  { path: '/vente', component: v('SaleNew'), meta: { tab: 'vente' } },
-  { path: '/ventes', component: v('SalesList'), meta: { tab: 'vente' } },
-  { path: '/ventes/:id', component: v('SaleDetail'), meta: { tab: 'vente' } },
-  { path: '/caisse', component: v('CashView'), meta: { tab: 'vente' } },
+  { path: '/vente', component: v('SaleNew'), meta: { tab: 'vente', root: true, title: 'Vente' } },
+  { path: '/ventes', component: v('SalesList'), meta: { tab: 'vente', title: 'Ventes' } },
+  { path: '/ventes/:id', component: v('SaleDetail'), meta: { tab: 'vente', title: 'Vente' } },
+  { path: '/caisse', component: v('CashView'), meta: { tab: 'vente', title: 'Caisse' } },
 
-  // Clients
-  { path: '/clients', component: v('ClientsList'), meta: { tab: 'clients' } },
-  { path: '/clients/nouveau', component: v('ClientForm'), meta: { tab: 'clients' } },
-  { path: '/clients/:id', component: v('ClientDetail'), meta: { tab: 'clients' } },
-  { path: '/clients/:id/modifier', component: v('ClientForm'), meta: { tab: 'clients' } },
+  { path: '/clients', component: v('ClientsList'), meta: { tab: 'clients', root: true, title: 'Clients' } },
+  { path: '/clients/nouveau', component: v('ClientForm'), meta: { tab: 'clients', title: 'Nouveau' } },
+  { path: '/clients/:id', component: v('ClientDetail'), meta: { tab: 'clients', title: 'Client' } },
+  { path: '/clients/:id/modifier', component: v('ClientForm'), meta: { tab: 'clients', title: 'Modifier' } },
 
-  // Plus
-  { path: '/plus', component: v('MoreView'), meta: { tab: 'plus' } },
-  { path: '/planning', component: v('PlanningView'), meta: { tab: 'plus', wide: true } },
-  { path: '/connecteurs', component: v('ConnectorsList'), meta: { tab: 'plus' } },
-  { path: '/connecteurs/nouveau', component: v('ConnectorForm'), meta: { tab: 'plus' } },
-  { path: '/connecteurs/:id', component: v('ConnectorDetail'), meta: { tab: 'plus' } },
-  { path: '/connecteurs/:id/modifier', component: v('ConnectorForm'), meta: { tab: 'plus' } },
-  { path: '/adaptations/nouvelle', component: v('AdaptationForm'), meta: { tab: 'plus' } },
-  { path: '/adaptations/:id', component: v('AdaptationDetail'), meta: { tab: 'plus' } },
-  { path: '/adaptations/:id/modifier', component: v('AdaptationForm'), meta: { tab: 'plus' } },
-  { path: '/base', component: v('KnowledgeList'), meta: { tab: 'plus' } },
-  { path: '/base/nouveau', component: v('KnowledgeForm'), meta: { tab: 'plus' } },
-  { path: '/base/:id', component: v('KnowledgeDetail'), meta: { tab: 'plus' } },
-  { path: '/base/:id/modifier', component: v('KnowledgeForm'), meta: { tab: 'plus' } },
-  { path: '/fournisseurs', component: v('SuppliersList'), meta: { tab: 'plus' } },
-  { path: '/fournisseurs/nouveau', component: v('SupplierForm'), meta: { tab: 'plus' } },
-  { path: '/fournisseurs/:id', component: v('SupplierDetail'), meta: { tab: 'plus' } },
-  { path: '/fournisseurs/:id/modifier', component: v('SupplierForm'), meta: { tab: 'plus' } },
-  { path: '/achats/nouveau', component: v('PurchaseNew'), meta: { tab: 'plus' } },
-  { path: '/achats/:id', component: v('PurchaseDetail'), meta: { tab: 'plus' } },
-  { path: '/parametres', component: v('SettingsView'), meta: { tab: 'plus' } },
+  { path: '/plus', component: v('MoreView'), meta: { tab: 'plus', root: true, title: 'Plus' } },
+  { path: '/planning', component: v('PlanningView'), meta: { tab: 'plus', title: 'Planning', wide: true } },
+  { path: '/connecteurs', component: v('ConnectorsList'), meta: { tab: 'plus', title: 'Connecteurs' } },
+  { path: '/connecteurs/nouveau', component: v('ConnectorForm'), meta: { tab: 'plus', title: 'Nouveau' } },
+  { path: '/connecteurs/:id', component: v('ConnectorDetail'), meta: { tab: 'plus', title: 'Connecteur' } },
+  { path: '/connecteurs/:id/modifier', component: v('ConnectorForm'), meta: { tab: 'plus', title: 'Modifier' } },
+  { path: '/adaptations/nouvelle', component: v('AdaptationForm'), meta: { tab: 'plus', title: 'Nouvelle' } },
+  { path: '/adaptations/:id', component: v('AdaptationDetail'), meta: { tab: 'plus', title: 'Adaptation' } },
+  { path: '/adaptations/:id/modifier', component: v('AdaptationForm'), meta: { tab: 'plus', title: 'Modifier' } },
+  { path: '/base', component: v('KnowledgeList'), meta: { tab: 'plus', title: 'Base technique' } },
+  { path: '/base/nouveau', component: v('KnowledgeForm'), meta: { tab: 'plus', title: 'Nouvelle' } },
+  { path: '/base/:id', component: v('KnowledgeDetail'), meta: { tab: 'plus', title: 'Solution' } },
+  { path: '/base/:id/modifier', component: v('KnowledgeForm'), meta: { tab: 'plus', title: 'Modifier' } },
+  { path: '/fournisseurs', component: v('SuppliersList'), meta: { tab: 'plus', title: 'Fournisseurs' } },
+  { path: '/fournisseurs/nouveau', component: v('SupplierForm'), meta: { tab: 'plus', title: 'Nouveau' } },
+  { path: '/fournisseurs/:id', component: v('SupplierDetail'), meta: { tab: 'plus', title: 'Fournisseur' } },
+  { path: '/fournisseurs/:id/modifier', component: v('SupplierForm'), meta: { tab: 'plus', title: 'Modifier' } },
+  { path: '/achats/nouveau', component: v('PurchaseNew'), meta: { tab: 'plus', title: 'Achat' } },
+  { path: '/achats/:id', component: v('PurchaseDetail'), meta: { tab: 'plus', title: 'Achat' } },
+  { path: '/parametres', component: v('SettingsView'), meta: { tab: 'plus', title: 'Réglages' } },
 
   { path: '/:pathMatch(.*)*', redirect: '/' },
 ];
@@ -67,11 +64,29 @@ const routes = [
 export const router = createRouter({
   history: createWebHistory(),
   routes,
-  scrollBehavior: (to, from, saved) => saved || { top: 0 },
+  scrollBehavior: () => false, // handled in App.vue so it follows the page transition
 });
 
-let settingsLoaded = false;
+// ---------- Navigation direction (push / pop / tab) and scroll memory ----------
+export const nav = reactive({ transition: 'tab', direction: 'push' });
+export const scrollMemory = new Map();
+let lastPosition = window.history.state?.position ?? 0;
 
+router.beforeEach((to, from) => {
+  if (from.matched.length) scrollMemory.set(from.fullPath, window.scrollY);
+});
+
+router.afterEach((to, from) => {
+  const pos = window.history.state?.position ?? 0;
+  const direction = pos < lastPosition ? 'pop' : pos > lastPosition ? 'push' : 'replace';
+  lastPosition = pos;
+  nav.direction = direction;
+  const tabSwitch = to.meta.tab !== from.meta.tab || (to.meta.root && from.meta.root);
+  nav.transition = !from.matched.length || tabSwitch || direction === 'replace' ? 'tab' : direction;
+});
+
+// ---------- Auth guard ----------
+let settingsLoaded = false;
 router.beforeEach(async (to) => {
   if (!session.checked) {
     try {

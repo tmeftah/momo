@@ -1,11 +1,16 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { api, fileUrl } from '../api.js';
+import { Cable, Plus } from 'lucide-vue-next';
+import { api } from '../api.js';
 import { WIRE_COLORS } from '../constants.js';
-import { fmtDate, toast, toastError } from '../store.js';
-import PageHeader from '../components/PageHeader.vue';
+import { fmtDate } from '../store.js';
+import { toast, toastError, confirmAction } from '../ui.js';
+import NavBar from '../components/NavBar.vue';
+import ListGroup from '../components/ListGroup.vue';
+import ListRow from '../components/ListRow.vue';
 import PhotoGallery from '../components/PhotoGallery.vue';
+import Skeleton from '../components/Skeleton.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -27,7 +32,7 @@ onMounted(async () => {
 });
 
 async function remove() {
-  if (!confirm(`Supprimer « ${c.value.name} » ? Les adaptations liées sont conservées.`)) return;
+  if (!(await confirmAction('Les adaptations liées sont conservées.', { title: `Supprimer « ${c.value.name} » ?`, confirm: 'Supprimer le connecteur' }))) return;
   try {
     await api.del(`/connectors/${id}`);
     toast('Connecteur supprimé');
@@ -40,52 +45,38 @@ async function remove() {
 
 <template>
   <div class="page">
-    <PageHeader :title="c?.name || 'Connecteur'" back="/connecteurs">
-      <router-link :to="`/connecteurs/${id}/modifier`" class="btn btn-sm">✏️</router-link>
-    </PageHeader>
-    <div v-if="c" class="stack">
+    <NavBar :reveal-at="160" :title="c?.name || ''" back="/connecteurs">
+      <router-link :to="`/connecteurs/${id}/modifier`" class="nav-btn">Modifier</router-link>
+    </NavBar>
+    <Skeleton v-if="!c" :rows="4" />
+    <template v-else>
+      <div class="hero">
+        <span class="tile xl bg-purple"><Cable :size="36" :stroke-width="1.8" /></span>
+        <div class="hero-title">{{ c.name }}</div>
+        <div class="hero-sub">{{ [c.application, c.pins ? `${c.pins} pins` : '', c.type].filter(Boolean).join(' · ') }}</div>
+      </div>
+
       <PhotoGallery ref-type="connector" :ref-id="id" :tags="TAGS" />
-      <div class="card">
-        <dl class="kv" style="margin: 0">
-          <template v-if="c.type"><dt>Type</dt><dd>{{ c.type }}</dd></template>
-          <template v-if="c.application"><dt>Application</dt><dd>{{ c.application }}</dd></template>
-          <template v-if="c.pins"><dt>Pins</dt><dd>{{ c.pins }}</dd></template>
-        </dl>
-      </div>
 
-      <div v-if="c.wires?.length" class="card">
-        <div class="card-title">Brochage</div>
-        <table class="table">
-          <thead><tr><th>Pin</th><th>Fil</th><th>Fonction</th></tr></thead>
-          <tbody>
-            <tr v-for="(w, i) in c.wires" :key="i">
-              <td class="strong">{{ w.pin || i + 1 }}</td>
-              <td><div class="row" style="gap: 6px"><span class="wire-swatch" :style="{ background: colorCss[w.color] || 'transparent' }" />{{ w.color }}</div></td>
-              <td>{{ w.function }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <ListGroup v-if="c.wires?.length" header="Brochage">
+        <div v-for="(w, i) in c.wires" :key="i" class="cell" style="gap: 10px">
+          <span class="tile soft bold num" style="width: 28px; height: 28px; border-radius: 14px; font-size: 13px; color: var(--label)">{{ w.pin || i + 1 }}</span>
+          <span class="wire-dot" :style="{ background: colorCss[w.color] || 'transparent' }" :class="{ empty: !w.color }" />
+          <div class="cell-main"><div class="cell-title wrap">{{ w.function || '—' }}</div><div class="cell-sub">{{ w.color || 'couleur non renseignée' }}</div></div>
+        </div>
+      </ListGroup>
 
-      <div v-if="c.wiring" class="card"><div class="card-title">Schéma de câblage</div><div class="block-text mono small">{{ c.wiring }}</div></div>
-      <div v-if="c.notes" class="card"><div class="card-title">Notes</div><div class="pre">{{ c.notes }}</div></div>
+      <ListGroup v-if="c.wiring" header="Schéma de câblage"><div class="cell code-cell">{{ c.wiring }}</div></ListGroup>
+      <ListGroup v-if="c.notes" header="Notes"><div class="cell text-cell">{{ c.notes }}</div></ListGroup>
 
-      <div class="section-title row between">
-        <span>Adaptations réalisées</span>
-        <router-link :to="`/adaptations/nouvelle?connector_id=${id}`" class="small">➕ Ajouter</router-link>
-      </div>
-      <div class="list">
-        <router-link v-for="a in c.adaptations" :key="a.id" :to="`/adaptations/${a.id}`" class="list-item">
-          <img v-if="a.photo" class="thumb" :src="fileUrl(a.photo)" alt="" />
-          <div v-else class="thumb">🛠️</div>
-          <div class="grow">
-            <div class="title ellipsis">{{ a.title }}</div>
-            <div class="sub">{{ fmtDate(a.created_at) }}</div>
-          </div>
-        </router-link>
-        <div v-if="!c.adaptations.length" class="empty small">Aucune adaptation enregistrée</div>
-      </div>
-      <button class="btn btn-danger" style="margin-top: 16px" @click="remove">Supprimer le connecteur</button>
-    </div>
+      <ListGroup header="Adaptations réalisées">
+        <ListRow v-for="a in c.adaptations" :key="a.id" :to="`/adaptations/${a.id}`" :thumb="a.photo || null" thumb-icon="🛠️" :title="a.title" :subtitle="fmtDate(a.created_at)" />
+        <ListRow :to="`/adaptations/nouvelle?connector_id=${id}`" :icon="Plus" tile="blue" title="Nouvelle adaptation" action />
+      </ListGroup>
+
+      <ListGroup>
+        <ListRow title="Supprimer le connecteur" destructive @click="remove" />
+      </ListGroup>
+    </template>
   </div>
 </template>

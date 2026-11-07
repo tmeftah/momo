@@ -1,15 +1,33 @@
 <script setup>
 import { ref, watch, onMounted, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
+import { Banknote, Repeat, Handshake, CreditCard, ShoppingCart, Wrench, Activity } from 'lucide-vue-next';
 import { api } from '../api.js';
 import { METHOD, DOC_LABEL, DOC_ROUTE } from '../constants.js';
-import { money, fmtDate, localToday, toastError } from '../store.js';
-import PageHeader from '../components/PageHeader.vue';
+import { money, fmtDate, fmtTime, localToday } from '../store.js';
+import { toastError } from '../ui.js';
+import NavBar from '../components/NavBar.vue';
+import ListGroup from '../components/ListGroup.vue';
+import ListRow from '../components/ListRow.vue';
+import Segmented from '../components/Segmented.vue';
+import Skeleton from '../components/Skeleton.vue';
 
 const route = useRoute();
+const period = ref('today');
 const from = ref(localToday());
 const to = ref(localToday());
 const c = ref(null);
+
+const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+watch(period, (p) => {
+  const today = localToday();
+  if (p === 'today') from.value = to.value = today;
+  if (p === 'yesterday') from.value = to.value = iso(new Date(Date.now() - 86400000));
+  if (p === 'month') {
+    from.value = today.slice(0, 8) + '01';
+    to.value = today;
+  }
+});
 
 async function load() {
   try {
@@ -23,98 +41,79 @@ onMounted(async () => {
   if (route.hash === '#credits') nextTick(() => document.getElementById('credits')?.scrollIntoView({ behavior: 'smooth' }));
 });
 watch([from, to], load);
-
-function preset(p) {
-  const today = localToday();
-  if (p === 'today') from.value = to.value = today;
-  if (p === 'yesterday') {
-    const d = new Date(Date.now() - 86400000);
-    from.value = to.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  }
-  if (p === 'month') {
-    from.value = today.slice(0, 8) + '01';
-    to.value = today;
-  }
-}
 </script>
 
 <template>
   <div class="page">
-    <PageHeader title="💰 Caisse" back />
-    <div class="stack">
-      <div class="chips">
-        <button class="chip" @click="preset('today')">Aujourd'hui</button>
-        <button class="chip" @click="preset('yesterday')">Hier</button>
-        <button class="chip" @click="preset('month')">Ce mois</button>
+    <NavBar title="Caisse" large back :refresh="load" />
+    <Segmented v-model="period" :options="[{ value: 'today', label: 'Aujourd’hui' }, { value: 'yesterday', label: 'Hier' }, { value: 'month', label: 'Mois' }, { value: 'custom', label: 'Dates' }]" />
+    <ListGroup v-if="period === 'custom'">
+      <label class="cell field"><span class="field-label">Du</span><input v-model="from" type="date" /></label>
+      <label class="cell field"><span class="field-label">Au</span><input v-model="to" type="date" /></label>
+    </ListGroup>
+
+    <Skeleton v-if="!c" :rows="4" :thumb="false" />
+    <template v-else>
+      <div class="widgets mt">
+        <div class="widget span2 hero-w">
+          <div class="w-glow" style="background: var(--green)" />
+          <div class="w-head" style="color: var(--green)">Recettes</div>
+          <div class="w-value">{{ money(c.total) }}</div>
+          <div class="w-sub">{{ c.payments.length }} paiement(s){{ c.from !== c.to ? ` · du ${fmtDate(c.from)} au ${fmtDate(c.to)}` : '' }}</div>
+        </div>
+        <div class="widget" style="min-height: 92px">
+          <div class="w-head" style="color: var(--green)"><Banknote :size="16" />Espèces</div>
+          <div class="w-value" style="font-size: 24px">{{ money(c.by_method.especes || 0) }}</div>
+        </div>
+        <div class="widget" style="min-height: 92px">
+          <div class="w-head" style="color: var(--teal)"><Repeat :size="16" />Échange</div>
+          <div class="w-value" style="font-size: 24px">{{ money(c.by_method.echange || 0) }}</div>
+        </div>
+        <div class="widget" style="min-height: 92px">
+          <div class="w-head" style="color: var(--purple)"><Handshake :size="16" />Emprunt</div>
+          <div class="w-value" style="font-size: 24px">{{ money(c.by_method.emprunt || 0) }}</div>
+        </div>
+        <a href="#credits" class="widget" style="min-height: 92px">
+          <div class="w-head" style="color: var(--orange)"><CreditCard :size="16" />Crédits en cours</div>
+          <div class="w-value" style="font-size: 24px">{{ money(c.credits.total) }}</div>
+        </a>
       </div>
-      <div class="grid-2">
-        <label class="field"><span>Du</span><input v-model="from" type="date" /></label>
-        <label class="field"><span>Au</span><input v-model="to" type="date" /></label>
-      </div>
 
-      <template v-if="c">
-        <div class="stat yellow">
-          <span class="stat-label">Recettes de la période</span>
-          <span class="stat-value" style="font-size: 2rem">{{ money(c.total) }}</span>
-          <span class="stat-sub">{{ c.payments.length }} paiement(s)</span>
-        </div>
-        <div class="stats">
-          <div class="stat green"><span class="stat-label">💵 Espèces</span><span class="stat-value">{{ money(c.by_method.especes || 0) }}</span></div>
-          <div class="stat cyan"><span class="stat-label">🔄 Échange</span><span class="stat-value">{{ money(c.by_method.echange || 0) }}</span></div>
-          <div class="stat purple"><span class="stat-label">🤝 Emprunt</span><span class="stat-value">{{ money(c.by_method.emprunt || 0) }}</span></div>
-          <div class="stat orange"><span class="stat-label">💳 Crédits en cours</span><span class="stat-value">{{ money(c.credits.total) }}</span><span class="stat-sub">toutes dates</span></div>
-        </div>
+      <ListGroup header="Encaissé par origine">
+        <ListRow :icon="ShoppingCart" tile="yellow" title="Ventes" :value="money(c.by_type.sale || 0)" />
+        <ListRow :icon="Wrench" tile="blue" title="Réparations" :value="money(c.by_type.repair || 0)" />
+        <ListRow :icon="Activity" tile="teal" title="Diagnostics" :value="money(c.by_type.diagnostic || 0)" />
+      </ListGroup>
 
-        <div class="section-title">Encaissements par origine</div>
-        <div class="card">
-          <dl class="kv" style="margin: 0">
-            <dt>🛒 Ventes payées</dt><dd>{{ money(c.by_type.sale || 0) }}</dd>
-            <dt>🔧 Réparations payées</dt><dd>{{ money(c.by_type.repair || 0) }}</dd>
-            <dt>⚡ Diagnostics payés</dt><dd>{{ money(c.by_type.diagnostic || 0) }}</dd>
-          </dl>
-        </div>
+      <ListGroup header="Activité et marges">
+        <ListRow :title="`Ventes (${c.sales.count})`" :value="money(c.sales.total)" />
+        <ListRow title="Marge sur ventes"><template #trailing><span class="bold num c-green">{{ money(c.sales.margin) }}</span></template></ListRow>
+        <ListRow :title="`Réparations livrées (${c.repairs_delivered.count})`" :value="money(c.repairs_delivered.total)" />
+        <ListRow title="Main-d'œuvre"><template #trailing><span class="bold num c-green">{{ money(c.repairs_delivered.labor) }}</span></template></ListRow>
+        <ListRow title="Marge sur pièces"><template #trailing><span class="bold num c-green">{{ money(c.repairs_delivered.parts_margin) }}</span></template></ListRow>
+        <ListRow :title="`Diagnostics conclus (${c.diagnostics.count})`" :value="money(c.diagnostics.total)" />
+      </ListGroup>
 
-        <div class="section-title">Activité & marges</div>
-        <div class="card">
-          <dl class="kv" style="margin: 0">
-            <dt>Ventes ({{ c.sales.count }})</dt><dd>{{ money(c.sales.total) }}</dd>
-            <dt>↳ coût d'achat</dt><dd class="muted">{{ money(c.sales.cost) }}</dd>
-            <dt>↳ marge ventes</dt><dd class="text-green">{{ money(c.sales.margin) }}</dd>
-            <dt>Réparations livrées ({{ c.repairs_delivered.count }})</dt><dd>{{ money(c.repairs_delivered.total) }}</dd>
-            <dt>↳ main-d'œuvre</dt><dd class="text-green">{{ money(c.repairs_delivered.labor) }}</dd>
-            <dt>↳ marge pièces</dt><dd class="text-green">{{ money(c.repairs_delivered.parts_margin) }}</dd>
-            <dt>Diagnostics conclus ({{ c.diagnostics.count }})</dt><dd>{{ money(c.diagnostics.total) }}</dd>
-          </dl>
-        </div>
+      <ListGroup header="Paiements reçus">
+        <ListRow
+          v-for="p in c.payments" :key="p.id" :to="DOC_ROUTE[p.ref_type] + p.ref_id" :icon="METHOD[p.method]?.icon" :tile="METHOD[p.method]?.color"
+          :title="p.client_name || 'Client de passage'" :subtitle="`${DOC_LABEL[p.ref_type]} #${p.ref_id} · ${c.from === c.to ? fmtTime(p.created_at) : fmtDate(p.created_at, true)}${p.notes ? ' · ' + p.notes : ''}`" :chevron="false"
+        >
+          <template #trailing><span class="bold num c-green">+{{ money(p.amount) }}</span></template>
+        </ListRow>
+        <div v-if="!c.payments.length" class="cell secondary">Aucun paiement sur la période</div>
+      </ListGroup>
 
-        <div class="section-title">Paiements reçus</div>
-        <div class="list">
-          <router-link v-for="p in c.payments" :key="p.id" :to="DOC_ROUTE[p.ref_type] + p.ref_id" class="list-item" style="min-height: 56px">
-            <div class="thumb" style="width: 40px; height: 40px; font-size: 1.2rem">{{ METHOD[p.method]?.icon }}</div>
-            <div class="grow">
-              <div class="title small">{{ DOC_LABEL[p.ref_type] }} #{{ p.ref_id }} · {{ p.client_name || 'Client de passage' }}</div>
-              <div class="sub tiny">{{ fmtDate(p.created_at, true) }}<template v-if="p.notes"> · {{ p.notes }}</template></div>
-            </div>
-            <div class="strong text-green">{{ money(p.amount) }}</div>
-          </router-link>
-          <div v-if="!c.payments.length" class="empty small">Aucun paiement sur la période</div>
-        </div>
-
-        <div id="credits" class="section-title">💳 Crédits clients en cours ({{ money(c.credits.total) }})</div>
-        <div class="list">
-          <router-link v-for="d in c.credits.items" :key="d.ref_type + d.id" :to="DOC_ROUTE[d.ref_type] + d.id" class="list-item" style="min-height: 56px">
-            <div class="grow">
-              <div class="title small">{{ d.client_name || 'Sans client' }}</div>
-              <div class="sub tiny ellipsis">{{ DOC_LABEL[d.ref_type] }} #{{ d.id }} · {{ fmtDate(d.created_at) }}{{ d.label ? ' · ' + d.label : '' }}</div>
-            </div>
-            <div class="right">
-              <div class="strong text-orange">{{ money(d.balance) }}</div>
-              <div class="tiny muted">sur {{ money(d.total) }}</div>
-            </div>
-          </router-link>
-          <div v-if="!c.credits.items.length" class="empty small">Aucun crédit en cours 🎉</div>
-        </div>
-      </template>
-    </div>
+      <ListGroup id="credits" header="Crédits clients en cours">
+        <template #header-right><span class="num c-orange" style="text-transform: none; font-weight: 600">{{ money(c.credits.total) }}</span></template>
+        <ListRow
+          v-for="d in c.credits.items" :key="d.ref_type + d.id" :to="DOC_ROUTE[d.ref_type] + d.id" :avatar="d.client_name || '?'"
+          :title="d.client_name || 'Sans client'" :subtitle="`${DOC_LABEL[d.ref_type]} #${d.id} · ${fmtDate(d.created_at)}${d.label ? ' · ' + d.label : ''}`" :chevron="false"
+        >
+          <template #trailing><div class="cell-trail"><span class="bold num c-orange">{{ money(d.balance) }}</span><span class="caption secondary">sur {{ money(d.total) }}</span></div></template>
+        </ListRow>
+        <div v-if="!c.credits.items.length" class="cell secondary">Aucun crédit en cours 🎉</div>
+      </ListGroup>
+    </template>
   </div>
 </template>

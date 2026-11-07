@@ -1,13 +1,13 @@
 <script setup>
-// Options: array of strings or { value, label, icon }. multiple → v-model is an array.
+// Filter chips. Options: strings or { value, label, icon, count }. multiple → array model.
+import { haptic } from '../ui.js';
+
 const props = defineProps({
   modelValue: [String, Number, Array, null],
   options: { type: Array, required: true },
   multiple: Boolean,
   allowEmpty: Boolean,
-  big: Boolean,
   scroll: Boolean,
-  yellow: Boolean,
 });
 const emit = defineEmits(['update:modelValue']);
 
@@ -15,6 +15,7 @@ const norm = (o) => (typeof o === 'object' ? o : { value: o, label: o });
 const isOn = (v) => (props.multiple ? (props.modelValue || []).includes(v) : props.modelValue === v);
 
 function toggle(v) {
+  haptic('light');
   if (props.multiple) {
     const cur = [...(props.modelValue || [])];
     const i = cur.indexOf(v);
@@ -28,16 +29,11 @@ function toggle(v) {
 </script>
 
 <template>
-  <div class="chips" :class="{ big, scroll }">
-    <button
-      v-for="o in options.map(norm)"
-      :key="o.value"
-      type="button"
-      class="chip"
-      :class="{ active: isOn(o.value), yellow }"
-      @click="toggle(o.value)"
-    >
-      <span v-if="o.icon">{{ o.icon }}</span>{{ o.label }}
+  <div class="chips" :class="{ scroll }">
+    <button v-for="o in options.map(norm)" :key="o.value" type="button" class="chip" :class="{ on: isOn(o.value) }" @click="toggle(o.value)">
+      <component :is="o.icon" v-if="o.icon && typeof o.icon !== 'string'" :size="15" :stroke-width="2.3" />
+      <span v-else-if="o.icon">{{ o.icon }}</span>
+      {{ o.label }}
       <span v-if="o.count !== undefined" class="count">{{ o.count }}</span>
     </button>
   </div>

@@ -1,11 +1,16 @@
 <script setup>
-import { ref, watch, onMounted } from 'vue';
+import { ref, watch, onActivated } from 'vue';
+import { Plus, Cable, Wrench } from 'lucide-vue-next';
 import { api, fileUrl } from '../api.js';
 import { CONNECTOR_APPS } from '../constants.js';
-import { toastError } from '../store.js';
-import PageHeader from '../components/PageHeader.vue';
+import { toastError } from '../ui.js';
+import NavBar from '../components/NavBar.vue';
+import ListGroup from '../components/ListGroup.vue';
+import ListRow from '../components/ListRow.vue';
 import ChipSelect from '../components/ChipSelect.vue';
+import SearchField from '../components/SearchField.vue';
 import EmptyState from '../components/EmptyState.vue';
+import Skeleton from '../components/Skeleton.vue';
 
 const q = ref('');
 const app = ref(null);
@@ -15,54 +20,54 @@ let timer;
 
 async function load() {
   try {
-    list.value = await api.get('/connectors', { q: q.value, application: app.value });
-    adaptations.value = q.value ? await api.get('/adaptations', { q: q.value, limit: 20 }) : [];
+    const [c, a] = await Promise.all([api.get('/connectors', { q: q.value, application: app.value }), api.get('/adaptations', { q: q.value, limit: 30 })]);
+    list.value = c;
+    adaptations.value = a;
   } catch (e) {
     toastError(e);
   }
 }
-onMounted(load);
+onActivated(load);
 watch([q, app], () => {
   clearTimeout(timer);
-  timer = setTimeout(load, 200);
+  timer = setTimeout(load, 180);
 });
 </script>
 
 <template>
   <div class="page">
-    <PageHeader title="🔌 Connecteurs" back="/plus">
-      <router-link to="/adaptations/nouvelle" class="btn btn-sm">➕ Adaptation</router-link>
-    </PageHeader>
-    <div class="stack">
-      <input v-model="q" type="search" placeholder="🔍 Type, application, couleur de fil, adaptation…" />
+    <NavBar title="Connecteurs" large back="/plus" :refresh="load" subtitle="Brochages, photos et adaptations réalisées">
+      <router-link to="/connecteurs/nouveau" class="nav-icon filled" aria-label="Nouveau connecteur"><Plus :size="20" :stroke-width="2.6" /></router-link>
+    </NavBar>
+    <div class="vstack" style="gap: 10px">
+      <SearchField v-model="q" placeholder="Type, application, couleur de fil…" />
       <ChipSelect v-model="app" :options="CONNECTOR_APPS" allow-empty scroll />
-      <div v-if="list" class="grid-2">
-        <router-link v-for="c in list" :key="c.id" :to="`/connecteurs/${c.id}`" class="card" style="padding: 0; overflow: hidden; color: inherit">
-          <img v-if="c.photo" :src="fileUrl(c.photo)" alt="" loading="lazy" style="width: 100%; aspect-ratio: 4/3; object-fit: cover" />
-          <div v-else class="thumb" style="width: 100%; height: auto; aspect-ratio: 4/3; border-radius: 0; font-size: 2.4rem">🔌</div>
-          <div style="padding: 10px">
-            <div class="strong ellipsis">{{ c.name }}</div>
-            <div class="tiny muted ellipsis">{{ [c.application, c.pins ? c.pins + ' pins' : '', c.type].filter(Boolean).join(' · ') }}</div>
-            <span v-if="c.adaptations_count" class="badge yellow tiny" style="margin-top: 4px">{{ c.adaptations_count }} adaptation(s)</span>
+    </div>
+
+    <Skeleton v-if="!list" :rows="4" />
+    <template v-else>
+      <div v-if="list.length" class="media-grid mt">
+        <router-link v-for="c in list" :key="c.id" :to="`/connecteurs/${c.id}`" class="media-card">
+          <img v-if="c.photo" :src="fileUrl(c.photo)" alt="" loading="lazy" />
+          <span v-else class="media-ph"><Cable :size="34" :stroke-width="1.5" /></span>
+          <div class="media-body">
+            <div class="subhead bold ellipsis">{{ c.name }}</div>
+            <div class="caption secondary ellipsis">{{ [c.application, c.pins ? c.pins + ' pins' : '', c.type].filter(Boolean).join(' · ') || '—' }}</div>
           </div>
+          <span v-if="c.adaptations_count" class="pill yellow media-badge">{{ c.adaptations_count }} adapt.</span>
         </router-link>
       </div>
-      <EmptyState v-if="list && !list.length" icon="🔌" text="Aucun connecteur enregistré" />
+      <EmptyState v-else-if="!adaptations.length" :icon="Cable" title="Bibliothèque vide" text="Photographiez vos connecteurs et notez leur brochage pour les retrouver plus tard.">
+        <router-link to="/connecteurs/nouveau" class="btn filled">Nouveau connecteur</router-link>
+      </EmptyState>
 
-      <template v-if="adaptations.length">
-        <div class="section-title">Adaptations trouvées</div>
-        <div class="list">
-          <router-link v-for="a in adaptations" :key="a.id" :to="`/adaptations/${a.id}`" class="list-item">
-            <img v-if="a.photo" class="thumb" :src="fileUrl(a.photo)" alt="" />
-            <div v-else class="thumb">🛠️</div>
-            <div class="grow">
-              <div class="title ellipsis">{{ a.title }}</div>
-              <div class="sub ellipsis">{{ a.connector_name || 'Sans connecteur' }}</div>
-            </div>
-          </router-link>
-        </div>
-      </template>
-    </div>
-    <router-link to="/connecteurs/nouveau" class="fab">➕ Connecteur</router-link>
+      <ListGroup v-if="adaptations.length" header="Adaptations réalisées">
+        <template #header-right><router-link to="/adaptations/nouvelle">Ajouter</router-link></template>
+        <ListRow v-for="a in adaptations" :key="a.id" :to="`/adaptations/${a.id}`" :thumb="a.photo || null" thumb-icon="🛠️" :title="a.title" :subtitle="a.connector_name || 'Sans connecteur'" />
+      </ListGroup>
+      <ListGroup v-else-if="list.length">
+        <ListRow to="/adaptations/nouvelle" :icon="Wrench" tile="purple" title="Enregistrer une adaptation" />
+      </ListGroup>
+    </template>
   </div>
 </template>

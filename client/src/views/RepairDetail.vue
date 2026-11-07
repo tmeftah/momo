@@ -1,23 +1,30 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { Phone, MessageCircle, UserRound, Pencil, Play, CircleCheckBig, Flag, BookOpen, Cable, Activity, Send } from 'lucide-vue-next';
 import { api } from '../api.js';
-import { REPAIR_STATUSES, PRIORITIES, CATEGORY, VEHICLE, PHOTO_TAGS_BEFORE_AFTER } from '../constants.js';
-import { money, fmtDate, toast, toastError, vehicleLabel, readyMessage, waLink } from '../store.js';
-import PageHeader from '../components/PageHeader.vue';
-import ChipSelect from '../components/ChipSelect.vue';
-import ContactButtons from '../components/ContactButtons.vue';
+import { REPAIR_STATUSES, STATUS, PRIORITIES, CATEGORY, VEHICLE, PHOTO_TAGS_BEFORE_AFTER } from '../constants.js';
+import { money, fmtDate, settings, vehicleName, vehicleEmoji, readyMessage, waLink, telLink } from '../store.js';
+import { toast, toastError, confirmAction, chooseAction, haptic } from '../ui.js';
+import NavBar from '../components/NavBar.vue';
+import ListGroup from '../components/ListGroup.vue';
+import ListRow from '../components/ListRow.vue';
+import PickerRow from '../components/PickerRow.vue';
+import Segmented from '../components/Segmented.vue';
+import ActionButtons from '../components/ActionButtons.vue';
 import LinesEditor from '../components/LinesEditor.vue';
 import PaymentsPanel from '../components/PaymentsPanel.vue';
 import PhotoGallery from '../components/PhotoGallery.vue';
 import RepairDetailsCard from '../components/RepairDetailsCard.vue';
-import StatusBadge from '../components/StatusBadge.vue';
+import StatusPill from '../components/StatusPill.vue';
+import Skeleton from '../components/Skeleton.vue';
 
 const route = useRoute();
 const router = useRouter();
 const id = Number(route.params.id);
 const r = ref(null);
 const labor = ref(0);
+const payments = ref(null);
 
 async function load() {
   try {
@@ -29,22 +36,57 @@ async function load() {
 }
 onMounted(load);
 
-const waReady = computed(() => (r.value ? waLink(r.value.client_whatsapp || r.value.client_phone, readyMessage(r.value)) : null));
+const phone = computed(() => r.value?.client_whatsapp || r.value?.client_phone);
+const waReady = computed(() => (r.value ? waLink(phone.value, readyMessage(r.value)) : null));
+const actions = computed(() => [
+  { icon: Phone, label: 'Appeler', href: telLink(r.value?.client_phone || r.value?.client_whatsapp), disabled: !phone.value },
+  { icon: MessageCircle, label: 'WhatsApp', href: waLink(phone.value), external: true, wa: true, disabled: !phone.value },
+  { icon: UserRound, label: 'Client', to: r.value?.client_id ? `/clients/${r.value.client_id}` : null, disabled: !r.value?.client_id },
+  { icon: Pencil, label: 'Modifier', to: `/reparations/${id}/modifier` },
+]);
+
+// ---------- Workflow: suggest the next logical step ----------
+const STEPS = ['en_attente', 'en_cours', 'en_test', 'terminee', 'livree'];
+const stepIndex = computed(() => {
+  const s = r.value?.status;
+  if (s === 'en_pause' || s === 'attente_piece') return 1;
+  return STEPS.indexOf(s);
+});
+const sideState = computed(() => ['en_pause', 'attente_piece'].includes(r.value?.status));
+const FLOW = {
+  en_attente: { next: 'en_cours', label: 'Commencer la réparation', icon: Play, alts: ['attente_piece', 'en_pause'] },
+  en_cours: { next: 'terminee', label: 'Réparation terminée', icon: CircleCheckBig, alts: ['en_test', 'en_pause', 'attente_piece'] },
+  en_pause: { next: 'en_cours', label: 'Reprendre', icon: Play, alts: ['attente_piece'] },
+  attente_piece: { next: 'en_cours', label: 'Pièce reçue — reprendre', icon: Play, alts: ['en_pause'] },
+  en_test: { next: 'terminee', label: 'Test OK — terminer', icon: CircleCheckBig, alts: ['en_cours'] },
+  terminee: { next: 'livree', label: 'Véhicule récupéré', icon: Flag, alts: [] },
+};
+const flow = computed(() => FLOW[r.value?.status]);
 
 async function patch(body, msg) {
   try {
-    const updated = await api.put(`/repairs/${id}`, body);
-    Object.assign(r.value, updated);
+    Object.assign(r.value, await api.put(`/repairs/${id}`, body));
     if (msg) toast(msg);
+    return true;
   } catch (e) {
     toastError(e);
+    return false;
   }
 }
 
-function setStatus(s) {
-  if (s === r.value.status) return;
-  if (s === 'livree' && r.value.balance > 0.009 && !confirm(`Le client doit encore ${money(r.value.balance)}.\nLivrer quand même ? (le reste passe en crédit client)`)) return;
-  patch({ status: s }, `Statut : ${REPAIR_STATUSES.find((x) => x.value === s).label}`);
+async function setStatus(s) {
+  if (!s || s === r.value.status) return;
+  if (s === 'livree' && r.value.balance > 0.009) {
+    const choice = await chooseAction({
+      title: `Reste ${money(r.value.balance)} à payer`,
+      message: 'Encaisser maintenant, ou livrer et garder le reste en crédit client ?',
+      actions: [{ label: 'Encaisser maintenant', value: 'pay' }, { label: 'Livrer — reste en crédit', value: 'credit' }],
+    });
+    if (choice === 'pay') return payments.value?.openPay();
+    if (choice !== 'credit') return;
+  }
+  haptic(s === 'terminee' || s === 'livree' ? 'success' : 'light');
+  await patch({ status: s }, `${STATUS[s].label}`);
 }
 
 async function notify() {
@@ -55,8 +97,14 @@ async function notify() {
   }
 }
 
+async function saveLabor() {
+  if (Number(labor.value) === r.value.labor) return;
+  if (await patch({ labor: Number(labor.value) || 0 }, 'Main-d’œuvre enregistrée')) load();
+}
+
 async function remove() {
-  if (!confirm(`Supprimer la réparation #${id} ? Les pièces seront remises en stock et les paiements supprimés.`)) return;
+  const ok = await confirmAction('Les pièces seront remises en stock et les paiements supprimés.', { title: `Supprimer la réparation #${id} ?`, confirm: 'Supprimer la réparation' });
+  if (!ok) return;
   try {
     await api.del(`/repairs/${id}`);
     toast('Réparation supprimée');
@@ -69,91 +117,99 @@ async function remove() {
 
 <template>
   <div class="page">
-    <PageHeader :title="r ? `#${r.id} ${CATEGORY[r.category]?.label || 'Réparation'}` : 'Réparation'" back>
-      <router-link :to="`/reparations/${id}/modifier`" class="btn btn-sm">✏️ Modifier</router-link>
-    </PageHeader>
+    <NavBar :reveal-at="170" :title="r ? vehicleName(r) : ''" back="/atelier">
+      <router-link :to="`/reparations/${id}/modifier`" class="nav-btn">Modifier</router-link>
+    </NavBar>
 
-    <div v-if="r" class="stack">
-      <div class="card stack">
-        <div class="row">
-          <div class="thumb" style="width: 60px; height: 60px; font-size: 1.8rem">{{ CATEGORY[r.category]?.icon }}</div>
-          <div class="grow">
-            <h2>{{ vehicleLabel(r) }}</h2>
-            <div class="small muted">{{ VEHICLE[r.vehicle_type]?.label }}<template v-if="r.voltage"> · {{ r.voltage }}</template><template v-if="r.serial"> · S/N {{ r.serial }}</template></div>
-            <div class="row wrap" style="gap: 6px; margin-top: 6px">
-              <StatusBadge :status="r.status" /><StatusBadge :priority="r.priority" />
+    <Skeleton v-if="!r" :rows="5" />
+    <template v-else>
+      <div class="hero">
+        <span class="tile xl soft">{{ vehicleEmoji(r) }}</span>
+        <div class="hero-title">{{ vehicleName(r) }}</div>
+        <div class="hero-sub">{{ [VEHICLE[r.vehicle_type]?.short, r.voltage, `#${r.id}`].filter(Boolean).join(' · ') }}</div>
+        <div class="hero-pills">
+          <StatusPill :status="r.status" />
+          <span v-if="r.category !== 'general'" class="pill" :class="CATEGORY[r.category]?.color"><component :is="CATEGORY[r.category]?.icon" />{{ CATEGORY[r.category]?.short || CATEGORY[r.category]?.label }}</span>
+          <StatusPill v-if="r.priority !== 'normal'" :priority="r.priority" />
+        </div>
+      </div>
+      <ActionButtons :actions="actions" />
+
+      <!-- Next step -->
+      <section class="lg">
+        <div class="group flow">
+          <div class="flow-steps" style="grid-template-columns: repeat(5, 1fr)">
+            <i v-for="(s, i) in STEPS" :key="s" :class="{ done: i <= stepIndex && !(sideState && i === stepIndex), warn: sideState && i === stepIndex }" />
+          </div>
+          <div class="flow-status">
+            <span class="tile" :class="`bg-${STATUS[r.status].color}`"><component :is="STATUS[r.status].icon" :size="18" :stroke-width="2.3" /></span>
+            <div class="grow">
+              <div class="headline">{{ STATUS[r.status].label }}</div>
+              <div class="footnote secondary">
+                <template v-if="r.status === 'terminee'">{{ r.notified_at ? `Client prévenu ${fmtDate(r.notified_at, true)}` : 'Client pas encore prévenu' }}</template>
+                <template v-else-if="r.status === 'livree'">Livrée le {{ fmtDate(r.delivered_at, true) }}</template>
+                <template v-else-if="r.due_date">Prévu pour le {{ fmtDate(r.due_date) }}</template>
+                <template v-else>Entrée {{ fmtDate(r.created_at) }}</template>
+              </div>
             </div>
           </div>
+          <a v-if="r.status === 'terminee' && waReady && !r.notified_at" class="btn wa block" :href="waReady" target="_blank" rel="noopener" @click="notify">
+            <Send :size="18" />Prévenir le client
+          </a>
+          <button v-if="flow" class="btn block" :class="r.status === 'terminee' ? (r.notified_at || !waReady ? 'green' : 'gray') : 'filled'" @click="setStatus(flow.next)">
+            <component :is="flow.icon" :size="19" :stroke-width="2.3" />{{ flow.label }}
+          </button>
+          <div v-if="flow?.alts.length" class="flow-alt">
+            <button v-for="a in flow.alts" :key="a" class="chip" @click="setStatus(a)">
+              <component :is="STATUS[a].icon" :size="15" :stroke-width="2.3" />{{ STATUS[a].label }}
+            </button>
+          </div>
         </div>
-        <div class="row between small">
-          <router-link v-if="r.client_id" :to="`/clients/${r.client_id}`" class="strong">👤 {{ r.client_name }}</router-link>
-          <span v-else class="muted">Sans client</span>
-          <span class="muted">Entrée le {{ fmtDate(r.created_at) }}</span>
-        </div>
-        <div v-if="r.due_date" class="small">📅 Prévu pour le <b>{{ fmtDate(r.due_date) }}</b></div>
-        <ContactButtons :phone="r.client_phone" :whatsapp="r.client_whatsapp" />
-      </div>
+      </section>
 
-      <!-- Ready → tell the customer, then deliver -->
-      <div v-if="r.status === 'terminee'" class="card stack" style="border-color: rgba(34, 197, 94, 0.5)">
-        <div class="strong">✅ Réparation terminée {{ r.notified_at ? `· client prévenu le ${fmtDate(r.notified_at, true)}` : '' }}</div>
-        <a v-if="waReady" class="btn btn-wa btn-lg" :href="waReady" target="_blank" rel="noopener" @click="notify">💬 Prévenir le client (WhatsApp)</a>
-        <button class="btn btn-success btn-lg" @click="setStatus('livree')">🏁 Véhicule récupéré (livrée)</button>
-      </div>
+      <ListGroup>
+        <PickerRow :model-value="r.status" label="Statut" :options="REPAIR_STATUSES" @update:model-value="setStatus" />
+        <div class="cell"><span class="cell-main cell-title">Priorité</span><Segmented :model-value="r.priority" :options="PRIORITIES" style="width: 250px" @update:model-value="(p) => patch({ priority: p })" /></div>
+      </ListGroup>
 
-      <div class="section-title">Statut</div>
-      <div class="status-grid">
-        <button v-for="s in REPAIR_STATUSES" :key="s.value" class="status-btn" :class="{ active: r.status === s.value }" @click="setStatus(s.value)">{{ s.icon }} {{ s.label }}</button>
-      </div>
-      <ChipSelect :model-value="r.priority" :options="PRIORITIES" @update:model-value="(p) => patch({ priority: p })" />
+      <ListGroup v-if="r.problem || r.diagnosis || r.work_done">
+        <div v-if="r.problem" class="cell text-cell" style="display: block"><span class="t-label">Problème déclaré</span>{{ r.problem }}</div>
+        <div v-if="r.diagnosis" class="cell text-cell" style="display: block"><span class="t-label">Diagnostic</span>{{ r.diagnosis }}</div>
+        <div v-if="r.work_done" class="cell text-cell" style="display: block"><span class="t-label">Travail effectué</span>{{ r.work_done }}</div>
+      </ListGroup>
 
-      <div v-if="r.problem || r.diagnosis || r.work_done" class="card stack">
-        <template v-if="r.problem"><div class="label">Problème déclaré</div><div class="block-text">{{ r.problem }}</div></template>
-        <template v-if="r.diagnosis"><div class="label">Diagnostic</div><div class="block-text">{{ r.diagnosis }}</div></template>
-        <template v-if="r.work_done"><div class="label">Travail effectué</div><div class="block-text">{{ r.work_done }}</div></template>
-      </div>
-      <router-link v-if="r.diagnostic" :to="`/diagnostics/${r.diagnostic.id}`" class="list-item">
-        <div class="thumb">⚡</div>
-        <div class="grow">
-          <div class="title">Issu du diagnostic #{{ r.diagnostic.id }}</div>
-          <div class="sub">{{ money(r.diagnostic.price) }} · {{ r.diagnostic.balance > 0.009 ? `reste ${money(r.diagnostic.balance)}` : 'payé' }}</div>
-        </div>
-      </router-link>
+      <ListGroup v-if="r.diagnostic">
+        <ListRow :to="`/diagnostics/${r.diagnostic.id}`" :icon="Activity" tile="teal" :title="`Diagnostic #${r.diagnostic.id}`" :subtitle="r.diagnostic.balance > 0.009 ? `${money(r.diagnostic.price)} · reste ${money(r.diagnostic.balance)}` : `${money(r.diagnostic.price)} · payé`" />
+      </ListGroup>
 
       <RepairDetailsCard :category="r.category" :details="r.details" />
 
-      <div class="section-title">Pièces utilisées</div>
       <LinesEditor :repair-id="id" :lines="r.lines" @changed="load" />
 
-      <div class="section-title">Main-d'œuvre</div>
-      <div class="row">
-        <input v-model.number="labor" class="grow" type="number" step="0.01" min="0" inputmode="decimal" />
-        <button class="btn" :disabled="labor === r.labor" @click="patch({ labor }, 'Main-d\'œuvre enregistrée')">💾</button>
-      </div>
+      <ListGroup header="Main-d'œuvre">
+        <label class="cell field"><span class="field-label">Montant</span><input v-model="labor" type="number" step="0.01" min="0" inputmode="decimal" @change="saveLabor" @keyup.enter="$event.target.blur()" /><span class="unit">{{ settings.currency }}</span></label>
+      </ListGroup>
 
-      <div class="section-title">Paiement</div>
-      <div class="card">
-        <PaymentsPanel
-          ref-type="repair" :ref-id="id" :total="r.total" :paid="r.paid" :payments="r.payments"
-          hint="Acompte possible. Le reste non payé à la livraison apparaît en crédit client."
-          @changed="load"
-        />
-      </div>
+      <PaymentsPanel
+        ref="payments" ref-type="repair" :ref-id="id" :total="r.total" :paid="r.paid" :payments="r.payments"
+        footer="Acompte possible. Ce qui reste à la livraison devient un crédit client."
+        @changed="load"
+      />
 
-      <div class="section-title">Photos</div>
-      <PhotoGallery ref-type="repair" :ref-id="id" :tags="PHOTO_TAGS_BEFORE_AFTER" />
+      <PhotoGallery ref-type="repair" :ref-id="id" :tags="PHOTO_TAGS_BEFORE_AFTER" header="Photos avant / après" />
 
-      <div class="section-title">Capitaliser</div>
-      <div class="grid-2">
-        <router-link :to="`/base/nouveau?repair_id=${id}`" class="btn">📚 Ajouter à la base technique</router-link>
-        <router-link :to="`/adaptations/nouvelle?repair_id=${id}`" class="btn">🔌 Enregistrer une adaptation</router-link>
-      </div>
+      <ListGroup header="Capitaliser">
+        <ListRow :to="`/base/nouveau?repair_id=${id}`" :icon="BookOpen" tile="orange" title="Ajouter à la base technique" />
+        <ListRow :to="`/adaptations/nouvelle?repair_id=${id}`" :icon="Cable" tile="purple" title="Enregistrer une adaptation" />
+      </ListGroup>
 
-      <div v-if="r.notes" class="card"><div class="label">Notes internes</div><div class="pre small">{{ r.notes }}</div></div>
-      <div class="tiny muted">
-        Créée {{ fmtDate(r.created_at, true) }}<template v-if="r.finished_at"> · terminée {{ fmtDate(r.finished_at, true) }}</template><template v-if="r.delivered_at"> · livrée {{ fmtDate(r.delivered_at, true) }}</template>
-      </div>
-      <button class="btn btn-danger" @click="remove">Supprimer la réparation</button>
-    </div>
+      <ListGroup v-if="r.notes" header="Notes internes">
+        <div class="cell text-cell">{{ r.notes }}</div>
+      </ListGroup>
+
+      <ListGroup :footer="`Créée ${fmtDate(r.created_at, true)}${r.finished_at ? ' · terminée ' + fmtDate(r.finished_at, true) : ''}${r.delivered_at ? ' · livrée ' + fmtDate(r.delivered_at, true) : ''}`">
+        <ListRow title="Supprimer la réparation" destructive @click="remove" />
+      </ListGroup>
+    </template>
   </div>
 </template>

@@ -1,10 +1,15 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { Star } from 'lucide-vue-next';
 import { api } from '../api.js';
-import { fmtDate, toast, toastError } from '../store.js';
-import PageHeader from '../components/PageHeader.vue';
+import { fmtDate } from '../store.js';
+import { toast, toastError, confirmAction, haptic } from '../ui.js';
+import NavBar from '../components/NavBar.vue';
+import ListGroup from '../components/ListGroup.vue';
+import ListRow from '../components/ListRow.vue';
 import PhotoGallery from '../components/PhotoGallery.vue';
+import Skeleton from '../components/Skeleton.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -31,6 +36,7 @@ onMounted(async () => {
 });
 
 async function toggleFav() {
+  haptic('light');
   try {
     s.value = await api.put(`/solutions/${id}`, { favorite: s.value.favorite ? 0 : 1 });
   } catch (e) {
@@ -39,7 +45,7 @@ async function toggleFav() {
 }
 
 async function remove() {
-  if (!confirm('Supprimer cette solution ?')) return;
+  if (!(await confirmAction('', { title: 'Supprimer cette solution ?', confirm: 'Supprimer' }))) return;
   try {
     await api.del(`/solutions/${id}`);
     toast('Solution supprimée');
@@ -52,23 +58,33 @@ async function remove() {
 
 <template>
   <div class="page">
-    <PageHeader :title="s?.title || 'Solution'" back="/base">
-      <button v-if="s" class="btn btn-sm" @click="toggleFav">{{ s.favorite ? '⭐' : '☆' }}</button>
-      <router-link :to="`/base/${id}/modifier`" class="btn btn-sm">✏️</router-link>
-    </PageHeader>
-    <div v-if="s" class="stack">
-      <div class="row small"><span v-if="s.category" class="badge blue">{{ s.category }}</span><span class="muted">{{ fmtDate(s.updated_at || s.created_at) }}</span></div>
+    <NavBar :reveal-at="44" :title="s?.title || ''" back="/base">
+      <button v-if="s" class="nav-icon" style="background: none" aria-label="Favori" @click="toggleFav">
+        <Star :size="22" :fill="s.favorite ? 'var(--yellow)' : 'none'" :color="s.favorite ? 'var(--yellow)' : 'var(--tint)'" />
+      </button>
+      <router-link :to="`/base/${id}/modifier`" class="nav-btn">Modifier</router-link>
+    </NavBar>
+    <Skeleton v-if="!s" :rows="4" :thumb="false" />
+    <template v-else>
+      <h1 class="title1" style="margin: 4px 0 4px">{{ s.title }}</h1>
+      <div class="hstack" style="gap: 8px">
+        <span v-if="s.category" class="pill blue">{{ s.category }}</span>
+        <span class="footnote secondary">Mis à jour {{ fmtDate(s.updated_at || s.created_at) }}</span>
+      </div>
+
       <template v-for="[k, label] in sections" :key="k">
-        <div v-if="s[k]" class="card" :style="k === 'solution' ? 'border-color: rgba(34,197,94,.5)' : ''">
-          <div class="card-title">{{ label }}</div>
-          <div class="pre">{{ s[k] }}</div>
-        </div>
+        <ListGroup v-if="s[k]" :header="label">
+          <div class="cell text-cell" :style="k === 'solution' ? 'box-shadow: inset 3px 0 0 var(--green)' : ''">{{ s[k] }}</div>
+        </ListGroup>
       </template>
-      <div v-if="s.wiring" class="card"><div class="card-title">Schéma</div><div class="block-text mono small">{{ s.wiring }}</div></div>
-      <div v-if="s.notes" class="card"><div class="card-title">Notes</div><div class="pre">{{ s.notes }}</div></div>
-      <div class="section-title">Photos & schémas</div>
-      <PhotoGallery ref-type="solution" :ref-id="id" :tags="TAGS" />
-      <button class="btn btn-danger" style="margin-top: 16px" @click="remove">Supprimer</button>
-    </div>
+      <ListGroup v-if="s.wiring" header="Schéma"><div class="cell code-cell">{{ s.wiring }}</div></ListGroup>
+      <ListGroup v-if="s.notes" header="Notes"><div class="cell text-cell">{{ s.notes }}</div></ListGroup>
+
+      <PhotoGallery ref-type="solution" :ref-id="id" :tags="TAGS" header="Photos & schémas" />
+
+      <ListGroup>
+        <ListRow title="Supprimer la solution" destructive @click="remove" />
+      </ListGroup>
+    </template>
   </div>
 </template>

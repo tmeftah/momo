@@ -1,87 +1,84 @@
 <script setup>
-// Parts used in a repair. Every change hits the API immediately so the stock stays exact.
+// Parts used in a repair. Changes hit the API immediately so the stock stays exact.
 import { ref, computed } from 'vue';
+import { Plus } from 'lucide-vue-next';
 import { api } from '../api.js';
-import { money, fmtNum, toast, toastError } from '../store.js';
-import ItemPicker from './ItemPicker.vue';
+import { money, fmtNum } from '../store.js';
+import { toast, toastError, confirmAction } from '../ui.js';
+import ListGroup from './ListGroup.vue';
+import ListRow from './ListRow.vue';
+import ItemPickerSheet from './ItemPickerSheet.vue';
+import BottomSheet from './BottomSheet.vue';
+import Stepper from './Stepper.vue';
 
 const props = defineProps({ repairId: { type: Number, required: true }, lines: { type: Array, default: () => [] } });
 const emit = defineEmits(['changed']);
 
+const picking = ref(false);
+const editing = ref(null); // { line, qty, unit_price }
 const busy = ref(false);
-const free = ref(null);
 const total = computed(() => props.lines.reduce((s, l) => s + l.qty * l.unit_price, 0));
 const cost = computed(() => props.lines.reduce((s, l) => s + l.qty * l.unit_cost, 0));
 
 async function run(fn, msg) {
-  if (busy.value) return;
+  if (busy.value) return false;
   busy.value = true;
   try {
     await fn();
     if (msg) toast(msg);
     emit('changed');
+    return true;
   } catch (e) {
     toastError(e);
+    return false;
   } finally {
     busy.value = false;
   }
 }
 
-const addItem = (item) => {
-  if (item.quantity <= 0 && !confirm(`« ${item.name} » est en rupture de stock (${fmtNum(item.quantity)}). Ajouter quand même ?`)) return;
-  run(() => api.post(`/repairs/${props.repairId}/lines`, { item_id: item.id, qty: 1 }), 'Pièce ajoutée, stock mis à jour');
-};
-const addFree = () =>
-  run(async () => {
-    await api.post(`/repairs/${props.repairId}/lines`, free.value);
-    free.value = null;
-  }, 'Pièce ajoutée');
-const setQty = (l, qty) => qty > 0 && run(() => api.put(`/lines/${l.id}`, { qty }));
-const setPrice = (l, e) => run(() => api.put(`/lines/${l.id}`, { unit_price: e.target.value }));
-const remove = (l) => confirm(`Retirer « ${l.name} » ? ${l.item_id ? 'La quantité sera remise en stock.' : ''}`) && run(() => api.del(`/lines/${l.id}`), 'Pièce retirée');
+async function addItem(item) {
+  if (item.quantity <= 0 && !(await confirmAction(`« ${item.name} » est en rupture (${fmtNum(item.quantity)} en stock).`, { confirm: 'Ajouter quand même', destructive: false }))) return;
+  run(() => api.post(`/repairs/${props.repairId}/lines`, { item_id: item.id, qty: 1 }), `${item.name} ajouté · stock mis à jour`);
+}
+const addFree = (l) => run(() => api.post(`/repairs/${props.repairId}/lines`, l), 'Pièce ajoutée');
+
+const edit = (l) => (editing.value = { line: l, qty: l.qty, unit_price: l.unit_price });
+async function saveEdit() {
+  const e = editing.value;
+  if (await run(() => api.put(`/lines/${e.line.id}`, { qty: e.qty, unit_price: e.unit_price }), 'Pièce modifiée')) editing.value = null;
+}
+async function removeLine() {
+  const l = editing.value.line;
+  if (!(await confirmAction(l.item_id ? 'La quantité sera remise en stock.' : '', { title: `Retirer « ${l.name} » ?`, confirm: 'Retirer la pièce' }))) return;
+  if (await run(() => api.del(`/lines/${l.id}`), 'Pièce retirée')) editing.value = null;
+}
 </script>
 
 <template>
-  <div class="stack">
-    <div v-for="l in lines" :key="l.id" class="card" style="padding: 10px; background: var(--surface-2)">
-      <div class="row between">
-        <div class="grow">
-          <div class="strong">{{ l.name }}</div>
-          <div class="tiny muted">
-            {{ l.item_id ? `Stock restant : ${fmtNum(l.stock_quantity)}` : 'Hors stock' }}
-            <template v-if="l.unit_cost"> · achat {{ money(l.unit_cost) }}</template>
-          </div>
-        </div>
-        <button class="btn btn-ghost btn-icon btn-sm" aria-label="Retirer" @click="remove(l)">🗑️</button>
-      </div>
-      <div class="row" style="margin-top: 8px">
-        <button class="btn btn-icon" :disabled="busy || l.qty <= 1" @click="setQty(l, l.qty - 1)">−</button>
-        <div class="strong center" style="min-width: 36px">{{ fmtNum(l.qty) }}</div>
-        <button class="btn btn-icon" :disabled="busy" @click="setQty(l, l.qty + 1)">+</button>
-        <span class="muted">×</span>
-        <input class="grow" type="number" step="0.01" inputmode="decimal" :value="l.unit_price" @change="setPrice(l, $event)" />
-        <div class="strong right" style="min-width: 80px">{{ money(l.qty * l.unit_price) }}</div>
-      </div>
-    </div>
+  <ListGroup header="Pièces utilisées">
+    <ListRow v-for="l in lines" :key="l.id" :thumb="l.photo || null" :thumb-icon="l.item_id ? '📦' : '🔩'" chevron @click="edit(l)">
+      <div class="cell-title">{{ l.name }}</div>
+      <div class="cell-sub">{{ fmtNum(l.qty) }} × {{ money(l.unit_price) }} · {{ l.item_id ? `reste ${fmtNum(l.stock_quantity)} en stock` : 'hors stock' }}</div>
+      <template #trailing><span class="bold num">{{ money(l.qty * l.unit_price) }}</span></template>
+    </ListRow>
+    <ListRow :icon="Plus" tile="blue" title="Ajouter une pièce" action @click="picking = true" />
+    <template v-if="lines.length" #footer>
+      <div class="hstack between"><span>Total pièces <b class="num" style="color: var(--label)">{{ money(total) }}</b></span><span>Marge {{ money(total - cost) }}</span></div>
+    </template>
+  </ListGroup>
 
-    <ItemPicker @pick="addItem" />
+  <ItemPickerSheet :open="picking" title="Ajouter une pièce" allow-free keep-open @close="picking = false" @pick="addItem" @free="addFree" />
 
-    <div v-if="free" class="card stack" style="background: var(--surface-2)">
-      <label class="field"><span>Pièce hors stock</span><input v-model="free.name" placeholder="Désignation" /></label>
-      <div class="grid-2">
-        <label class="field"><span>Quantité</span><input v-model.number="free.qty" type="number" min="1" inputmode="decimal" /></label>
-        <label class="field"><span>Prix unitaire</span><input v-model.number="free.unit_price" type="number" step="0.01" inputmode="decimal" /></label>
-      </div>
-      <div class="row">
-        <button class="btn grow" @click="free = null">Annuler</button>
-        <button class="btn btn-primary grow" :disabled="!free.name" @click="addFree">Ajouter</button>
-      </div>
-    </div>
-    <button v-else class="btn btn-ghost btn-sm" @click="free = { name: '', qty: 1, unit_price: 0 }">➕ Pièce hors stock</button>
-
-    <div v-if="lines.length" class="totals">
-      <div class="line"><span class="muted">Total pièces</span><span class="strong">{{ money(total) }}</span></div>
-      <div class="line tiny muted"><span>Marge sur pièces</span><span>{{ money(total - cost) }}</span></div>
-    </div>
-  </div>
+  <BottomSheet :open="!!editing" :title="editing?.line.name" action="OK" :action-disabled="busy" @close="editing = null" @action="saveEdit">
+    <template v-if="editing">
+      <ListGroup>
+        <div class="cell"><span class="cell-main cell-title">Quantité</span><Stepper v-model="editing.qty" /></div>
+        <label class="cell field"><span class="field-label">Prix unitaire</span><input v-model.number="editing.unit_price" type="number" step="0.01" inputmode="decimal" /></label>
+        <ListRow title="Total" :value="money(editing.qty * editing.unit_price)" />
+      </ListGroup>
+      <ListGroup>
+        <ListRow title="Retirer la pièce" destructive @click="removeLine" />
+      </ListGroup>
+    </template>
+  </BottomSheet>
 </template>

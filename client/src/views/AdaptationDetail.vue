@@ -1,10 +1,15 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { Cable, Wrench } from 'lucide-vue-next';
 import { api } from '../api.js';
-import { fmtDate, toast, toastError } from '../store.js';
-import PageHeader from '../components/PageHeader.vue';
+import { fmtDate } from '../store.js';
+import { toast, toastError, confirmAction } from '../ui.js';
+import NavBar from '../components/NavBar.vue';
+import ListGroup from '../components/ListGroup.vue';
+import ListRow from '../components/ListRow.vue';
 import PhotoGallery from '../components/PhotoGallery.vue';
+import Skeleton from '../components/Skeleton.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -25,7 +30,7 @@ onMounted(async () => {
 });
 
 async function remove() {
-  if (!confirm('Supprimer cette adaptation ?')) return;
+  if (!(await confirmAction('', { title: 'Supprimer cette adaptation ?', confirm: 'Supprimer' }))) return;
   try {
     await api.del(`/adaptations/${id}`);
     toast('Adaptation supprimée');
@@ -38,21 +43,28 @@ async function remove() {
 
 <template>
   <div class="page">
-    <PageHeader :title="a?.title || 'Adaptation'" back>
-      <router-link :to="`/adaptations/${id}/modifier`" class="btn btn-sm">✏️</router-link>
-    </PageHeader>
-    <div v-if="a" class="stack">
-      <div class="row wrap small">
-        <router-link v-if="a.connector_id" :to="`/connecteurs/${a.connector_id}`" class="badge blue">🔌 {{ a.connector_name }}</router-link>
-        <router-link v-if="a.repair_id" :to="`/reparations/${a.repair_id}`" class="badge">🔧 Réparation #{{ a.repair_id }}</router-link>
-        <span class="muted">{{ fmtDate(a.created_at) }}</span>
-      </div>
+    <NavBar :reveal-at="44" :title="a?.title || ''" back="/connecteurs">
+      <router-link :to="`/adaptations/${id}/modifier`" class="nav-btn">Modifier</router-link>
+    </NavBar>
+    <Skeleton v-if="!a" :rows="3" />
+    <template v-else>
+      <h1 class="title1" style="margin: 4px 0 2px">{{ a.title }}</h1>
+      <div class="subhead secondary">{{ fmtDate(a.created_at) }}</div>
+
+      <ListGroup v-if="a.connector_id || a.repair_id">
+        <ListRow v-if="a.connector_id" :to="`/connecteurs/${a.connector_id}`" :icon="Cable" tile="purple" title="Connecteur" :value="a.connector_name" />
+        <ListRow v-if="a.repair_id" :to="`/reparations/${a.repair_id}`" :icon="Wrench" tile="blue" title="Réparation" :value="`#${a.repair_id}`" />
+      </ListGroup>
+
       <PhotoGallery ref-type="adaptation" :ref-id="id" :tags="TAGS" />
-      <div v-if="a.problem" class="card"><div class="card-title">Problème</div><div class="pre">{{ a.problem }}</div></div>
-      <div v-if="a.pinout" class="card"><div class="card-title">Brochage</div><div class="block-text mono small">{{ a.pinout }}</div></div>
-      <div v-if="a.solution" class="card"><div class="card-title">Solution</div><div class="pre">{{ a.solution }}</div></div>
-      <div v-if="a.notes" class="card"><div class="card-title">Notes</div><div class="pre">{{ a.notes }}</div></div>
-      <button class="btn btn-danger" style="margin-top: 16px" @click="remove">Supprimer</button>
-    </div>
+
+      <ListGroup v-if="a.problem" header="Problème"><div class="cell text-cell">{{ a.problem }}</div></ListGroup>
+      <ListGroup v-if="a.pinout" header="Brochage"><div class="cell code-cell">{{ a.pinout }}</div></ListGroup>
+      <ListGroup v-if="a.solution" header="Solution"><div class="cell text-cell">{{ a.solution }}</div></ListGroup>
+      <ListGroup v-if="a.notes" header="Notes"><div class="cell text-cell">{{ a.notes }}</div></ListGroup>
+      <ListGroup>
+        <ListRow title="Supprimer l'adaptation" destructive @click="remove" />
+      </ListGroup>
+    </template>
   </div>
 </template>

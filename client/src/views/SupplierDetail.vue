@@ -1,10 +1,16 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { Phone, MessageCircle, PackagePlus, Pencil } from 'lucide-vue-next';
 import { api } from '../api.js';
-import { money, fmtNum, fmtDate, toast, toastError } from '../store.js';
-import PageHeader from '../components/PageHeader.vue';
-import ContactButtons from '../components/ContactButtons.vue';
+import { money, fmtNum, fmtDate, waLink, telLink } from '../store.js';
+import { toast, toastError, confirmAction } from '../ui.js';
+import NavBar from '../components/NavBar.vue';
+import ListGroup from '../components/ListGroup.vue';
+import ListRow from '../components/ListRow.vue';
+import Avatar from '../components/Avatar.vue';
+import ActionButtons from '../components/ActionButtons.vue';
+import Skeleton from '../components/Skeleton.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -19,8 +25,16 @@ onMounted(async () => {
   }
 });
 
+const wa = computed(() => s.value?.whatsapp || s.value?.phone);
+const actions = computed(() => [
+  { icon: Phone, label: 'Appeler', href: telLink(s.value?.phone || s.value?.whatsapp), disabled: !wa.value },
+  { icon: MessageCircle, label: 'WhatsApp', href: waLink(wa.value), external: true, wa: true, disabled: !wa.value },
+  { icon: PackagePlus, label: 'Achat', to: `/achats/nouveau?supplier_id=${id}` },
+  { icon: Pencil, label: 'Modifier', to: `/fournisseurs/${id}/modifier` },
+]);
+
 async function remove() {
-  if (!confirm(`Supprimer « ${s.value.name} » ?`)) return;
+  if (!(await confirmAction('Impossible si des achats y sont liés.', { title: `Supprimer « ${s.value.name} » ?`, confirm: 'Supprimer le fournisseur' }))) return;
   try {
     await api.del(`/suppliers/${id}`);
     toast('Fournisseur supprimé');
@@ -33,44 +47,39 @@ async function remove() {
 
 <template>
   <div class="page">
-    <PageHeader :title="s?.name || 'Fournisseur'" back="/fournisseurs">
-      <router-link :to="`/fournisseurs/${id}/modifier`" class="btn btn-sm">✏️</router-link>
-    </PageHeader>
-    <div v-if="s" class="stack">
-      <div class="card stack">
-        <dl class="kv" style="margin: 0">
-          <template v-if="s.phone"><dt>Téléphone</dt><dd>{{ s.phone }}</dd></template>
-          <template v-if="s.whatsapp"><dt>WhatsApp</dt><dd>{{ s.whatsapp }}</dd></template>
-          <template v-if="s.address"><dt>Adresse</dt><dd>{{ s.address }}</dd></template>
-        </dl>
-        <div v-if="s.notes" class="block-text small">{{ s.notes }}</div>
-        <ContactButtons :phone="s.phone" :whatsapp="s.whatsapp" />
+    <NavBar :reveal-at="180" :title="s?.name || ''" back="/fournisseurs">
+      <router-link :to="`/fournisseurs/${id}/modifier`" class="nav-btn">Modifier</router-link>
+    </NavBar>
+    <Skeleton v-if="!s" :rows="4" />
+    <template v-else>
+      <div class="hero">
+        <Avatar :name="s.name" :size="96" />
+        <div class="hero-title">{{ s.name }}</div>
+        <div class="hero-sub">{{ s.purchases_count }} achat(s){{ s.last_purchase_at ? ` · dernier le ${fmtDate(s.last_purchase_at)}` : '' }}</div>
       </div>
-      <router-link :to="`/achats/nouveau?supplier_id=${id}`" class="btn btn-accent btn-lg">📦 Nouvel achat (entrée en stock)</router-link>
+      <ActionButtons :actions="actions" />
 
-      <div class="section-title">Historique des achats</div>
-      <div class="list">
-        <router-link v-for="p in s.purchases" :key="p.id" :to="`/achats/${p.id}`" class="list-item">
-          <div class="thumb">📦</div>
-          <div class="grow">
-            <div class="title ellipsis">{{ p.summary }}</div>
-            <div class="sub">#{{ p.id }}{{ p.reference ? ' · ' + p.reference : '' }} · {{ fmtDate(p.created_at) }}</div>
-          </div>
-          <div class="strong">{{ money(p.total) }}</div>
-        </router-link>
-        <div v-if="!s.purchases.length" class="empty small">Aucun achat enregistré</div>
-      </div>
+      <ListGroup v-if="s.phone || s.whatsapp || s.address || s.notes">
+        <ListRow v-if="s.phone" title="Téléphone" :value="s.phone" :href="telLink(s.phone)" />
+        <ListRow v-if="s.whatsapp && s.whatsapp !== s.phone" title="WhatsApp" :value="s.whatsapp" :href="waLink(s.whatsapp)" external />
+        <ListRow v-if="s.address" title="Adresse" :value="s.address" />
+        <div v-if="s.notes" class="cell text-cell" style="display: block"><span class="t-label">Notes</span>{{ s.notes }}</div>
+      </ListGroup>
 
-      <template v-if="s.items.length">
-        <div class="section-title">Articles de ce fournisseur</div>
-        <div class="list">
-          <router-link v-for="i in s.items" :key="i.id" :to="`/stock/${i.id}`" class="list-item" style="min-height: 52px">
-            <div class="grow"><div class="title small ellipsis">{{ i.name }}</div><div class="sub tiny">{{ i.reference }}</div></div>
-            <div class="right small"><div>{{ money(i.purchase_price) }}</div><div class="muted">stock {{ fmtNum(i.quantity) }}</div></div>
-          </router-link>
-        </div>
-      </template>
-      <button class="btn btn-danger" style="margin-top: 16px" @click="remove">Supprimer le fournisseur</button>
-    </div>
+      <ListGroup header="Achats">
+        <ListRow v-for="p in s.purchases" :key="p.id" :to="`/achats/${p.id}`" emoji="📦" tile="soft" :title="p.summary" :subtitle="`#${p.id}${p.reference ? ' · ' + p.reference : ''} · ${fmtDate(p.created_at)}`" :chevron="false">
+          <template #trailing><span class="bold num">{{ money(p.total) }}</span></template>
+        </ListRow>
+        <ListRow :to="`/achats/nouveau?supplier_id=${id}`" :icon="PackagePlus" tile="green" title="Nouvel achat" action />
+      </ListGroup>
+
+      <ListGroup v-if="s.items.length" header="Articles de ce fournisseur">
+        <ListRow v-for="i in s.items" :key="i.id" :to="`/stock/${i.id}`" :title="i.name" :subtitle="`${i.reference || '—'} · stock ${fmtNum(i.quantity)}`" :value="money(i.purchase_price)" />
+      </ListGroup>
+
+      <ListGroup>
+        <ListRow title="Supprimer le fournisseur" destructive @click="remove" />
+      </ListGroup>
+    </template>
   </div>
 </template>

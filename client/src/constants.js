@@ -1,33 +1,40 @@
+import {
+  Clock, Wrench, Pause, PackageSearch, FlaskConical, CircleCheckBig, Flag,
+  Zap, PlugZap, BatteryCharging, Banknote, CreditCard, Repeat, Handshake,
+  CircleCheck, CircleHelp, CircleX, Ban,
+} from 'lucide-vue-next';
+
 export const VEHICLE_TYPES = [
-  { value: 'velo', label: 'Vélo électrique', short: 'Vélo', icon: '🚲' },
-  { value: 'trottinette', label: 'Trottinette électrique', short: 'Trottinette', icon: '🛴' },
-  { value: 'scooter', label: 'Scooter électrique', short: 'Scooter', icon: '🛵' },
-  { value: 'batterie', label: 'Batterie véhicule', short: 'Batterie', icon: '🔋' },
-  { value: 'outil', label: 'Batterie outil / visseuse', short: 'Outil', icon: '🪛' },
-  { value: 'autre', label: 'Autre', short: 'Autre', icon: '⚙️' },
+  { value: 'velo', label: 'Vélo électrique', short: 'Vélo', emoji: '🚲' },
+  { value: 'trottinette', label: 'Trottinette électrique', short: 'Trottinette', emoji: '🛴' },
+  { value: 'scooter', label: 'Scooter électrique', short: 'Scooter', emoji: '🛵' },
+  { value: 'batterie', label: 'Batterie véhicule', short: 'Batterie', emoji: '🔋' },
+  { value: 'outil', label: 'Batterie outil / visseuse', short: 'Outil', emoji: '🪛' },
+  { value: 'autre', label: 'Autre', short: 'Autre', emoji: '⚙️' },
 ];
 
+// Workflow order matters (progress bar on the repair page)
 export const REPAIR_STATUSES = [
-  { value: 'en_attente', label: 'En attente', icon: '🕓', color: 'gray' },
-  { value: 'en_cours', label: 'En cours', icon: '🔧', color: 'blue' },
-  { value: 'en_pause', label: 'En pause', icon: '⏸️', color: 'orange' },
-  { value: 'attente_piece', label: 'Attente pièce', icon: '📦', color: 'purple' },
-  { value: 'en_test', label: 'En test', icon: '🧪', color: 'cyan' },
-  { value: 'terminee', label: 'Terminée', icon: '✅', color: 'green' },
-  { value: 'livree', label: 'Livrée', icon: '🏁', color: 'dim' },
+  { value: 'en_attente', label: 'En attente', icon: Clock, color: 'gray' },
+  { value: 'en_cours', label: 'En cours', icon: Wrench, color: 'blue' },
+  { value: 'en_pause', label: 'En pause', icon: Pause, color: 'orange' },
+  { value: 'attente_piece', label: 'Attente pièce', icon: PackageSearch, color: 'purple' },
+  { value: 'en_test', label: 'En test', icon: FlaskConical, color: 'teal' },
+  { value: 'terminee', label: 'Terminée', icon: CircleCheckBig, color: 'green' },
+  { value: 'livree', label: 'Livrée', icon: Flag, color: 'gray' },
 ];
 
 export const PRIORITIES = [
-  { value: 'urgent', label: 'Urgent', icon: '🔴' },
-  { value: 'normal', label: 'Normal', icon: '🟡' },
-  { value: 'pas_urgent', label: 'Pas urgent', icon: '🟢' },
+  { value: 'urgent', label: 'Urgent', color: 'red' },
+  { value: 'normal', label: 'Normal', color: 'yellow' },
+  { value: 'pas_urgent', label: 'Pas urgent', color: 'green' },
 ];
 
 export const REPAIR_CATEGORIES = [
-  { value: 'general', label: 'Réparation', icon: '🔧' },
-  { value: 'electronique', label: 'Électronique', icon: '⚡' },
-  { value: 'chargeur', label: 'Adaptation chargeur', icon: '🔌' },
-  { value: 'batterie', label: 'Batterie lithium', icon: '🔋' },
+  { value: 'general', label: 'Réparation', icon: Wrench, color: 'blue' },
+  { value: 'electronique', label: 'Électronique', icon: Zap, color: 'orange' },
+  { value: 'chargeur', label: 'Adaptation chargeur', short: 'Chargeur', icon: PlugZap, color: 'purple' },
+  { value: 'batterie', label: 'Batterie lithium', short: 'Batterie', icon: BatteryCharging, color: 'green' },
 ];
 
 export const ELECTRONIC_INTERVENTIONS = [
@@ -56,8 +63,8 @@ export const BATTERY_INTERVENTIONS = [
 ];
 
 export const BATTERY_KINDS = [
-  { value: 'vehicule', label: 'Véhicule', icon: '🛴' },
-  { value: 'outil', label: 'Outil / visseuse', icon: '🪛' },
+  { value: 'vehicule', label: 'Véhicule' },
+  { value: 'outil', label: 'Outil / visseuse' },
 ];
 
 export const CELL_TYPES = ['18650', '21700', '26650', 'LiFePO4', 'Pouch / LiPo', 'Autre'];
@@ -80,27 +87,27 @@ export const STOCK_CATEGORIES = [
   'Consommables d’atelier',
 ];
 
-// "credit" = pay later: nothing is collected now (or an advance in cash)
+// "credit" = pay later: nothing collected now (or a cash advance)
 export const PAYMENT_METHODS = [
-  { value: 'especes', label: 'Espèces', icon: '💵' },
-  { value: 'credit', label: 'Crédit', icon: '💳' },
-  { value: 'echange', label: 'Échange', icon: '🔄' },
-  { value: 'emprunt', label: 'Emprunt', icon: '🤝' },
+  { value: 'especes', label: 'Espèces', icon: Banknote, color: 'green' },
+  { value: 'credit', label: 'Crédit', icon: CreditCard, color: 'orange' },
+  { value: 'echange', label: 'Échange', icon: Repeat, color: 'teal' },
+  { value: 'emprunt', label: 'Emprunt', icon: Handshake, color: 'purple' },
 ];
 export const COLLECT_METHODS = PAYMENT_METHODS.filter((m) => m.value !== 'credit');
 
 export const DIAG_DECISIONS = [
-  { value: 'acceptee', label: 'Réparation acceptée', icon: '✅', color: 'green' },
-  { value: 'reflechit', label: 'Client réfléchit', icon: '🤔', color: 'orange' },
-  { value: 'refuse', label: 'Client refuse', icon: '❌', color: 'red' },
-  { value: 'impossible', label: 'Réparation impossible', icon: '⛔', color: 'gray' },
+  { value: 'acceptee', label: 'Réparation acceptée', short: 'Acceptée', icon: CircleCheck, color: 'green' },
+  { value: 'reflechit', label: 'Client réfléchit', short: 'Réfléchit', icon: CircleHelp, color: 'orange' },
+  { value: 'refuse', label: 'Client refuse', short: 'Refusée', icon: CircleX, color: 'red' },
+  { value: 'impossible', label: 'Réparation impossible', short: 'Impossible', icon: Ban, color: 'gray' },
 ];
 
 export const CONNECTOR_APPS = ['Chargeur', 'Batterie', 'Écran', 'Moteur', 'Capteurs Hall', 'Contrôleur', 'Accélérateur', 'Freins', 'Éclairage', 'Autre'];
 
 export const WIRE_COLORS = [
   { value: 'rouge', css: '#e53935' },
-  { value: 'noir', css: '#111' },
+  { value: 'noir', css: '#1a1a1a' },
   { value: 'bleu', css: '#1e88e5' },
   { value: 'jaune', css: '#fdd835' },
   { value: 'vert', css: '#43a047' },
@@ -110,7 +117,7 @@ export const WIRE_COLORS = [
   { value: 'gris', css: '#9e9e9e' },
   { value: 'violet', css: '#8e24aa' },
   { value: 'rose', css: '#ec407a' },
-  { value: 'jaune/vert', css: 'linear-gradient(90deg,#fdd835 50%,#43a047 50%)' },
+  { value: 'jaune/vert', css: 'linear-gradient(135deg,#fdd835 50%,#43a047 50%)' },
 ];
 
 export const KNOWLEDGE_CATEGORIES = ['Batterie', 'BMS', 'Chargeur', 'Contrôleur', 'Écran', 'Moteur', 'Capteurs Hall', 'Câblage', 'Connecteurs', 'Freins', 'Mécanique', 'Autre'];

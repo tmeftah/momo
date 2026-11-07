@@ -1,9 +1,12 @@
 <script setup>
-import { reactive, ref, onMounted } from 'vue';
+import { reactive, ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { api } from '../api.js';
-import { toast, toastError, vehicleLabel } from '../store.js';
-import PageHeader from '../components/PageHeader.vue';
+import { vehicleName } from '../store.js';
+import { toast, toastError } from '../ui.js';
+import NavBar from '../components/NavBar.vue';
+import ListGroup from '../components/ListGroup.vue';
+import PickerRow from '../components/PickerRow.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -15,16 +18,20 @@ const form = reactive({
   repair_id: route.query.repair_id ? Number(route.query.repair_id) : null,
   problem: '', pinout: '', solution: '', notes: '',
 });
+const connectorOptions = computed(() => connectors.value.map((c) => ({ value: c.id, label: c.name })));
+const valid = computed(() => form.title.trim().length > 0);
 
 onMounted(async () => {
   connectors.value = await api.get('/connectors').catch(() => []);
   try {
-    if (id) Object.assign(form, await api.get(`/adaptations/${id}`));
-    else if (form.repair_id) {
+    if (id) {
+      const a = await api.get(`/adaptations/${id}`);
+      for (const k of Object.keys(form)) form[k] = a[k] ?? form[k];
+    } else if (form.repair_id) {
       // Prefill from the repair (charger adaptation / electronic work)
       const r = await api.get(`/repairs/${form.repair_id}`);
       const d = r.details || {};
-      form.title = d.old_connector && d.new_connector ? `${d.old_connector} → ${d.new_connector} (${vehicleLabel(r).replace(/^\S+\s/, '')})` : `Adaptation ${vehicleLabel(r).replace(/^\S+\s/, '')}`;
+      form.title = d.old_connector && d.new_connector ? `${d.old_connector} → ${d.new_connector} (${vehicleName(r)})` : `Adaptation ${vehicleName(r)}`;
       form.problem = [r.problem, d.original_system].filter(Boolean).join('\n');
       form.pinout = [d.wiring, d.modification, d.polarity && `Polarité : ${d.polarity}`].filter(Boolean).join('\n');
       form.solution = [d.solution, d.new_system, r.work_done].filter(Boolean).join('\n');
@@ -35,13 +42,11 @@ onMounted(async () => {
 });
 
 async function save() {
+  if (!valid.value || busy.value) return;
   busy.value = true;
   try {
-    const body = { ...form };
-    delete body.connector_name;
-    delete body.photo;
-    const a = id ? await api.put(`/adaptations/${id}`, body) : await api.post('/adaptations', body);
-    toast('Adaptation enregistrée — ajoutez les photos');
+    const a = id ? await api.put(`/adaptations/${id}`, form) : await api.post('/adaptations', form);
+    toast(id ? 'Adaptation enregistrée' : 'Adaptation créée — ajoutez les photos');
     router.replace(`/adaptations/${a.id}`);
   } catch (e) {
     toastError(e);
@@ -53,22 +58,22 @@ async function save() {
 
 <template>
   <div class="page">
-    <PageHeader :title="id ? 'Modifier l’adaptation' : 'Nouvelle adaptation'" back />
-    <form class="stack" @submit.prevent="save">
-      <label class="field"><span>Titre *</span><input v-model="form.title" required placeholder="ex : Câble écran 5 pins cassé → adaptation Julet" /></label>
-      <label class="field">
-        <span>Connecteur concerné</span>
-        <select v-model="form.connector_id">
-          <option :value="null">—</option>
-          <option v-for="c in connectors" :key="c.id" :value="c.id">{{ c.name }}</option>
-        </select>
-      </label>
-      <label class="field"><span>Problème</span><textarea v-model="form.problem" placeholder="ex : Câble d'origine cassé, pièce de remplacement introuvable" /></label>
-      <label class="field"><span>Brochage / correspondance des fils</span><textarea v-model="form.pinout" class="mono" rows="6" placeholder="Origine rouge (+)  → Nouveau pin 1 rouge&#10;Origine noir (−)  → Nouveau pin 2 noir" /></label>
-      <label class="field"><span>Solution</span><textarea v-model="form.solution" /></label>
-      <label class="field"><span>Notes</span><textarea v-model="form.notes" /></label>
-      <p v-if="form.repair_id" class="tiny muted" style="margin: 0">Liée à la réparation #{{ form.repair_id }}</p>
-      <button class="btn btn-primary btn-lg" :disabled="busy">💾 Enregistrer</button>
+    <NavBar :reveal-at="44" :title="id ? 'Modifier' : 'Nouvelle adaptation'" back>
+      <button class="nav-btn" :disabled="!valid || busy" @click="save">OK</button>
+    </NavBar>
+    <h1 class="title1" style="margin: 4px 0 2px">{{ id ? 'Modifier l’adaptation' : 'Nouvelle adaptation' }}</h1>
+    <form @submit.prevent="save">
+      <ListGroup :footer="form.repair_id ? `Liée à la réparation #${form.repair_id}` : ''">
+        <label class="cell field stacked"><span class="field-label">Titre</span><input v-model="form.title" placeholder="ex : Câble écran 5 pins cassé → Julet" /></label>
+        <PickerRow v-model="form.connector_id" label="Connecteur" :options="connectorOptions" allow-empty empty-label="Aucun" />
+      </ListGroup>
+      <ListGroup>
+        <label class="cell field stacked"><span class="field-label">Problème</span><textarea v-model="form.problem" placeholder="ex : câble d'origine cassé, pièce introuvable" /></label>
+        <label class="cell field stacked"><span class="field-label">Brochage / correspondance</span><textarea v-model="form.pinout" class="mono" placeholder="Origine rouge (+) → nouveau pin 1&#10;Origine noir (−) → nouveau pin 2" /></label>
+        <label class="cell field stacked"><span class="field-label">Solution</span><textarea v-model="form.solution" /></label>
+        <label class="cell field stacked"><span class="field-label">Notes</span><textarea v-model="form.notes" /></label>
+      </ListGroup>
+      <button class="btn filled lg block mt" :disabled="!valid || busy">{{ id ? 'Enregistrer' : 'Créer l’adaptation' }}</button>
     </form>
   </div>
 </template>

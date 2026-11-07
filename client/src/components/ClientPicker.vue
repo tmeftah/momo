@@ -1,68 +1,70 @@
 <script setup>
-import { ref, watch, onMounted } from 'vue';
+// Row showing the chosen client; opens a searchable sheet with inline "new client" creation.
+import { ref, watch, nextTick } from 'vue';
+import { UserPlus, UserRound } from 'lucide-vue-next';
 import { api } from '../api.js';
-import { toastError } from '../store.js';
-import Modal from './Modal.vue';
+import { toastError } from '../ui.js';
+import ListRow from './ListRow.vue';
+import ListGroup from './ListGroup.vue';
+import BottomSheet from './BottomSheet.vue';
+import SearchField from './SearchField.vue';
 
-const props = defineProps({ modelValue: [Number, String, null], optional: Boolean });
+const props = defineProps({ modelValue: [Number, String, null], optional: Boolean, label: { type: String, default: 'Client' } });
 const emit = defineEmits(['update:modelValue', 'selected']);
 
 const selected = ref(null);
+const open = ref(false);
+const creating = ref(false);
 const query = ref('');
 const results = ref([]);
-const creating = ref(false);
-const draft = ref({ name: '', phone: '', whatsapp: '' });
+const draft = ref({ name: '', phone: '' });
+const search = ref(null);
 let timer;
 
 async function loadSelected() {
   if (!props.modelValue) return (selected.value = null);
   if (selected.value?.id === Number(props.modelValue)) return;
+  selected.value = await api.get(`/clients/${props.modelValue}`).catch(() => null);
+}
+watch(() => props.modelValue, loadSelected, { immediate: true });
+
+async function find() {
   try {
-    selected.value = await api.get(`/clients/${props.modelValue}`);
-  } catch {
-    selected.value = null;
+    results.value = await api.get('/clients', { q: query.value, limit: 40 });
+  } catch (e) {
+    toastError(e);
   }
 }
-onMounted(loadSelected);
-watch(() => props.modelValue, loadSelected);
-
-watch(query, (q) => {
+watch(query, () => {
   clearTimeout(timer);
-  if (!q.trim()) return (results.value = []);
-  timer = setTimeout(async () => {
-    try {
-      results.value = await api.get('/clients', { q, limit: 8 });
-    } catch (e) {
-      toastError(e);
-    }
-  }, 200);
+  timer = setTimeout(find, 180);
 });
+
+function show() {
+  creating.value = false;
+  query.value = '';
+  open.value = true;
+  find();
+  nextTick(() => setTimeout(() => search.value?.focus(), 350));
+}
 
 function choose(c) {
   selected.value = c;
-  query.value = '';
-  results.value = [];
-  emit('update:modelValue', c.id);
+  emit('update:modelValue', c?.id ?? null);
   emit('selected', c);
+  open.value = false;
 }
 
-function clear() {
-  selected.value = null;
-  emit('update:modelValue', null);
-  emit('selected', null);
-}
-
-function openCreate() {
+function startCreate() {
   const q = query.value.trim();
-  draft.value = /^[\d\s+]+$/.test(q) ? { name: '', phone: q, whatsapp: q } : { name: q, phone: '', whatsapp: '' };
+  draft.value = /^[\d\s+]+$/.test(q) ? { name: '', phone: q } : { name: q, phone: '' };
   creating.value = true;
 }
 
 async function create() {
   if (!draft.value.name.trim()) return;
   try {
-    const c = await api.post('/clients', { ...draft.value, whatsapp: draft.value.whatsapp || draft.value.phone });
-    creating.value = false;
+    const c = await api.post('/clients', { ...draft.value, whatsapp: draft.value.phone });
     choose(c);
   } catch (e) {
     toastError(e);
@@ -71,37 +73,30 @@ async function create() {
 </script>
 
 <template>
-  <div class="field">
-    <span>Client <template v-if="optional">(facultatif)</template></span>
-    <div v-if="selected" class="list-item" style="cursor: default">
-      <div class="thumb">👤</div>
-      <div class="grow">
-        <div class="title">{{ selected.name }}</div>
-        <div class="sub">{{ selected.phone || selected.whatsapp || 'Pas de téléphone' }}</div>
-      </div>
-      <button type="button" class="btn btn-sm" @click="clear">Changer</button>
-    </div>
-    <template v-else>
-      <input v-model="query" type="search" placeholder="🔍 Rechercher nom ou téléphone…" autocomplete="off" />
-      <div v-if="query.trim()" class="list">
-        <div v-for="c in results" :key="c.id" class="list-item" @click="choose(c)">
-          <div class="grow">
-            <div class="title">{{ c.name }}</div>
-            <div class="sub">{{ c.phone || c.whatsapp }}</div>
-          </div>
-        </div>
-        <button type="button" class="btn btn-block" @click="openCreate">➕ Nouveau client « {{ query.trim() }} »</button>
-      </div>
-      <button v-else type="button" class="btn btn-block btn-ghost" @click="openCreate">➕ Nouveau client</button>
-    </template>
+  <ListRow v-if="selected" :avatar="selected.name" :title="selected.name" :subtitle="selected.phone || selected.whatsapp || label" chevron @click="show" />
+  <ListRow v-else :icon="UserRound" tile="gray" :title="label" :value="optional ? 'Client de passage' : 'Choisir'" chevron @click="show" />
 
-    <Modal v-if="creating" title="Nouveau client" @close="creating = false">
-      <form class="stack" @submit.prevent="create">
-        <label class="field"><span>Nom *</span><input v-model="draft.name" required autofocus /></label>
-        <label class="field"><span>Téléphone</span><input v-model="draft.phone" type="tel" inputmode="tel" /></label>
-        <label class="field"><span>WhatsApp (si différent)</span><input v-model="draft.whatsapp" type="tel" inputmode="tel" /></label>
-        <button class="btn btn-primary btn-lg" type="submit">Créer le client</button>
-      </form>
-    </Modal>
-  </div>
+  <BottomSheet
+    :open="open" full :title="creating ? 'Nouveau client' : 'Choisir un client'"
+    :cancel="creating ? 'Retour' : 'Annuler'" :action="creating ? 'Créer' : undefined" :action-disabled="!draft.name.trim()"
+    @close="creating ? (creating = false) : (open = false)" @action="create"
+  >
+    <template v-if="!creating">
+      <SearchField ref="search" v-model="query" placeholder="Nom ou téléphone" />
+      <ListGroup>
+        <ListRow :icon="UserPlus" tile="blue" :title="query.trim() ? `Créer « ${query.trim()} »` : 'Nouveau client'" action @click="startCreate" />
+        <ListRow v-if="optional && selected" title="Client de passage (aucun)" action @click="choose(null)" />
+      </ListGroup>
+      <ListGroup v-if="results.length" :header="query ? 'Résultats' : 'Clients'">
+        <ListRow
+          v-for="c in results" :key="c.id" :avatar="c.name" :title="c.name" :subtitle="c.phone || c.whatsapp"
+          :selected="selected?.id === c.id" @click="choose(c)"
+        />
+      </ListGroup>
+    </template>
+    <ListGroup v-else footer="Le numéro est aussi utilisé pour WhatsApp.">
+      <label class="cell field"><span class="field-label">Nom</span><input v-model="draft.name" placeholder="Obligatoire" autofocus /></label>
+      <label class="cell field"><span class="field-label">Téléphone</span><input v-model="draft.phone" type="tel" inputmode="tel" placeholder="06…" /></label>
+    </ListGroup>
+  </BottomSheet>
 </template>

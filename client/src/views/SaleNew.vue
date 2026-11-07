@@ -1,60 +1,73 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, onActivated } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { Plus, Receipt, Wallet, ShoppingCart, Trash2, NotebookPen } from 'lucide-vue-next';
 import { api, fileUrl } from '../api.js';
-import { PAYMENT_METHODS } from '../constants.js';
-import { money, fmtNum, toast, toastError } from '../store.js';
-import PageHeader from '../components/PageHeader.vue';
+import { money, fmtNum, round2 } from '../store.js';
+import { toast, toastError, confirmAction, haptic } from '../ui.js';
+import NavBar from '../components/NavBar.vue';
+import ListGroup from '../components/ListGroup.vue';
+import ListRow from '../components/ListRow.vue';
 import ClientPicker from '../components/ClientPicker.vue';
-import ItemPicker from '../components/ItemPicker.vue';
-import ChipSelect from '../components/ChipSelect.vue';
+import ItemPickerSheet from '../components/ItemPickerSheet.vue';
+import PaySheet from '../components/PaySheet.vue';
+import Stepper from '../components/Stepper.vue';
+import EmptyState from '../components/EmptyState.vue';
 
 const route = useRoute();
 const router = useRouter();
 const clientId = ref(route.query.client_id ? Number(route.query.client_id) : null);
 const cart = ref([]);
-const method = ref('especes');
-const amount = ref(0);
-const amountTouched = ref(false);
 const notes = ref('');
-const free = ref(null);
+const picking = ref(false);
+const paying = ref(false);
 const busy = ref(false);
 
-const total = computed(() => Math.round(cart.value.reduce((s, l) => s + l.qty * l.unit_price, 0) * 100) / 100);
-const remaining = computed(() => Math.max(0, Math.round((total.value - (Number(amount.value) || 0)) * 100) / 100));
+const total = computed(() => round2(cart.value.reduce((s, l) => s + l.qty * l.unit_price, 0)));
+const count = computed(() => cart.value.reduce((s, l) => s + l.qty, 0));
 const margin = computed(() => cart.value.reduce((s, l) => s + l.qty * (l.unit_price - (l.unit_cost || 0)), 0));
 
-// Default amount: full total, or 0 for a credit sale — until edited by hand
-watch([total, method], () => {
-  if (!amountTouched.value) amount.value = method.value === 'credit' ? 0 : total.value;
+// Kept alive: the cart survives tab switches; a client passed from a client page is applied
+onActivated(() => {
+  if (route.query.client_id) clientId.value = Number(route.query.client_id);
 });
 
 function add(item) {
   const existing = cart.value.find((l) => l.item_id === item.id);
   if (existing) existing.qty++;
-  else cart.value.push({ item_id: item.id, name: item.name, qty: 1, unit_price: item.sale_price, unit_cost: item.purchase_price, stock: item.quantity, photo: item.photo });
+  else cart.value.push({ key: `i${item.id}`, item_id: item.id, name: item.name, qty: 1, unit_price: item.sale_price, unit_cost: item.purchase_price, stock: item.quantity, photo: item.photo });
 }
-function addFree() {
-  cart.value.push({ item_id: null, name: free.value.name, qty: free.value.qty || 1, unit_price: free.value.unit_price || 0, unit_cost: 0, stock: null });
-  free.value = null;
+function addFree(l) {
+  cart.value.push({ key: `f${Date.now()}`, item_id: null, name: l.name, qty: l.qty, unit_price: l.unit_price, unit_cost: 0, stock: null, photo: null });
+}
+function removeLine(i) {
+  haptic('light');
+  cart.value.splice(i, 1);
 }
 
-async function submit() {
-  if (!cart.value.length) return;
-  if (amount.value > total.value + 0.009) return toastError(new Error('Le montant payé dépasse le total'));
-  if (remaining.value > 0 && !clientId.value && !confirm(`Reste ${money(remaining.value)} à payer sans client associé. Continuer ?`)) return;
+async function checkout() {
   const over = cart.value.filter((l) => l.stock !== null && l.qty > l.stock);
-  if (over.length && !confirm(`Stock insuffisant pour : ${over.map((l) => l.name).join(', ')}.\nValider quand même ?`)) return;
+  if (over.length && !(await confirmAction(over.map((l) => `${l.name} : ${fmtNum(l.stock)} en stock`).join('\n'), { title: 'Stock insuffisant', confirm: 'Continuer quand même', destructive: false }))) return;
+  paying.value = true;
+}
+
+async function submit(payment) {
+  const remaining = round2(total.value - payment.amount);
+  if (remaining > 0 && !clientId.value && !(await confirmAction(`${money(remaining)} restera à payer sans client associé.`, { title: 'Vente à crédit sans client', confirm: 'Valider quand même', destructive: false }))) return;
   busy.value = true;
   try {
     const sale = await api.post('/sales', {
       client_id: clientId.value,
-      notes: notes.value,
+      notes: [notes.value, payment.notes].filter(Boolean).join(' — '),
       lines: cart.value.map(({ item_id, name, qty, unit_price }) => ({ item_id, name, qty, unit_price })),
-      payment: { method: method.value, amount: Number(amount.value) || 0 },
+      payment: { method: payment.method, amount: payment.amount },
     });
-    toast(`Vente #${sale.id} enregistrée · ${money(sale.total)}`);
-    router.replace(`/ventes/${sale.id}`);
+    haptic('success');
+    toast(`Vente #${sale.id} · ${money(sale.total)}`);
+    paying.value = false;
+    cart.value = [];
+    notes.value = '';
+    router.push(`/ventes/${sale.id}`);
   } catch (e) {
     toastError(e);
   } finally {
@@ -64,75 +77,60 @@ async function submit() {
 </script>
 
 <template>
-  <div class="page">
-    <PageHeader title="🛒 Vente">
-      <router-link to="/ventes" class="btn btn-sm">🧾 Historique</router-link>
-      <router-link to="/caisse" class="btn btn-sm">💰 Caisse</router-link>
-    </PageHeader>
+  <div class="page" :class="{ 'has-bottom-bar': cart.length }">
+    <NavBar title="Vente" large subtitle="Vente directe de pièces et accessoires">
+      <router-link to="/ventes" class="nav-icon" aria-label="Historique"><Receipt :size="18" :stroke-width="2.2" /></router-link>
+      <router-link to="/caisse" class="nav-icon" aria-label="Caisse"><Wallet :size="18" :stroke-width="2.2" /></router-link>
+    </NavBar>
 
-    <div class="stack">
-      <ItemPicker placeholder="🔍 Rechercher un article (nom, réf, tension)…" @pick="add" />
+    <EmptyState v-if="!cart.length" :icon="ShoppingCart" title="Panier vide" text="Ajoutez un article : le stock est déduit automatiquement à la validation.">
+      <button class="btn filled lg" style="padding: 0 32px" @click="picking = true"><Plus :size="20" :stroke-width="2.6" />Ajouter un article</button>
+    </EmptyState>
 
-      <div v-for="(l, i) in cart" :key="i" class="card" style="padding: 10px">
-        <div class="row">
-          <img v-if="l.photo" class="thumb" :src="fileUrl(l.photo)" alt="" style="width: 44px; height: 44px" />
-          <div class="grow">
-            <div class="strong">{{ l.name }}</div>
-            <div class="tiny" :class="l.stock !== null && l.qty > l.stock ? 'text-red' : 'muted'">
-              {{ l.stock === null ? 'Hors stock' : `En stock : ${fmtNum(l.stock)}` }}
+    <template v-else>
+      <ListGroup :header="`Panier · ${fmtNum(count)} article(s)`">
+        <div v-for="(l, i) in cart" :key="l.key" class="cell has-thumb" style="align-items: flex-start; padding-top: 12px; padding-bottom: 12px">
+          <img v-if="l.photo" class="thumb" :src="fileUrl(l.photo)" alt="" />
+          <span v-else class="thumb">{{ l.item_id ? '📦' : '🔩' }}</span>
+          <div class="cell-main" style="gap: 8px">
+            <div class="hstack between" style="align-items: flex-start">
+              <div class="grow">
+                <div class="cell-title wrap">{{ l.name }}</div>
+                <div class="cell-sub" :class="{ 'c-red': l.stock !== null && l.qty > l.stock }">{{ l.stock === null ? 'Hors stock' : `${fmtNum(l.stock)} en stock` }}</div>
+              </div>
+              <span class="headline num">{{ money(l.qty * l.unit_price) }}</span>
+            </div>
+            <div class="hstack">
+              <Stepper v-model="l.qty" />
+              <label class="search grow" style="height: 36px; color: var(--label-2)">
+                <span class="footnote">P.U.</span>
+                <input v-model.number="l.unit_price" type="number" step="0.01" inputmode="decimal" class="num" style="text-align: right; font-size: 16px" />
+              </label>
+              <button class="nav-icon" style="color: var(--red)" aria-label="Retirer" @click="removeLine(i)"><Trash2 :size="17" /></button>
             </div>
           </div>
-          <button class="btn btn-ghost btn-sm" aria-label="Retirer" @click="cart.splice(i, 1)">🗑️</button>
         </div>
-        <div class="row" style="margin-top: 8px">
-          <button class="btn btn-icon" :disabled="l.qty <= 1" @click="l.qty--">−</button>
-          <div class="strong center" style="min-width: 32px">{{ fmtNum(l.qty) }}</div>
-          <button class="btn btn-icon" @click="l.qty++">+</button>
-          <span class="muted">×</span>
-          <input v-model.number="l.unit_price" class="grow" type="number" step="0.01" inputmode="decimal" />
-          <div class="strong right" style="min-width: 76px">{{ money(l.qty * l.unit_price) }}</div>
-        </div>
-      </div>
+        <ListRow :icon="Plus" tile="blue" title="Ajouter un article" action @click="picking = true" />
+      </ListGroup>
 
-      <div v-if="free" class="card stack">
-        <label class="field"><span>Article hors stock</span><input v-model="free.name" placeholder="Désignation" /></label>
-        <div class="grid-2">
-          <label class="field"><span>Quantité</span><input v-model.number="free.qty" type="number" min="1" inputmode="decimal" /></label>
-          <label class="field"><span>Prix unitaire</span><input v-model.number="free.unit_price" type="number" step="0.01" inputmode="decimal" /></label>
-        </div>
-        <div class="row"><button class="btn grow" @click="free = null">Annuler</button><button class="btn btn-primary grow" :disabled="!free.name" @click="addFree">Ajouter</button></div>
-      </div>
-      <button v-else class="btn btn-ghost btn-sm" @click="free = { name: '', qty: 1, unit_price: 0 }">➕ Article hors stock</button>
-
-      <template v-if="cart.length">
+      <ListGroup header="Client">
         <ClientPicker v-model="clientId" optional />
+      </ListGroup>
 
-        <div class="card stack">
-          <div class="totals">
-            <div class="line"><span>Total</span><span class="grand">{{ money(total) }}</span></div>
-            <div class="line tiny muted"><span>Marge estimée</span><span>{{ money(margin) }}</span></div>
-          </div>
-          <div class="field"><span>Mode de paiement</span><ChipSelect v-model="method" :options="PAYMENT_METHODS" big /></div>
-          <label class="field">
-            <span>{{ method === 'credit' ? 'Acompte versé en espèces (facultatif)' : 'Montant reçu' }}</span>
-            <input v-model.number="amount" type="number" step="0.01" min="0" inputmode="decimal" style="font-size: 1.3rem; font-weight: 800" @input="amountTouched = true" />
-          </label>
-          <div class="totals">
-            <div class="line">
-              <span>Reste à payer</span>
-              <span :class="remaining > 0 ? 'due' : 'ok'">{{ remaining > 0 ? money(remaining) + ' (crédit)' : '✅ Payé' }}</span>
-            </div>
-          </div>
-          <input v-model="notes" placeholder="Note (facultatif) — ex : article reçu en échange" />
+      <ListGroup :footer="`Marge estimée : ${money(margin)}`">
+        <label class="cell field has-tile"><span class="tile bg-gray"><NotebookPen :size="17" /></span><input v-model="notes" placeholder="Note pour cette vente" style="text-align: left" /></label>
+      </ListGroup>
+
+      <div class="bottom-bar">
+        <div class="grow" style="margin-left: auto">
+          <div class="caption secondary">Total</div>
+          <div class="title2 num">{{ money(total) }}</div>
         </div>
-
-        <button class="btn btn-accent btn-lg btn-block" :disabled="busy" @click="submit">✅ Valider la vente · {{ money(total) }}</button>
-      </template>
-      <div v-else class="empty">
-        <div class="big">🛒</div>
-        <div>Recherchez un article pour commencer la vente.</div>
-        <div class="tiny" style="margin-top: 6px">Le stock est déduit automatiquement à la validation.</div>
+        <button class="btn yellow" style="min-width: 160px" @click="checkout">Encaisser</button>
       </div>
-    </div>
+    </template>
+
+    <ItemPickerSheet :open="picking" allow-free keep-open @close="picking = false" @pick="add" @free="addFree" />
+    <PaySheet :open="paying" :due="total" title="Paiement" allow-credit :busy="busy" :confirm-label="`Valider la vente · ${money(total)}`" @close="paying = false" @confirm="submit" />
   </div>
 </template>

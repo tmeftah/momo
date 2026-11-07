@@ -2,17 +2,19 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { api } from '../api.js';
-import { money, fmtNum, fmtDate, toast, toastError } from '../store.js';
-import PageHeader from '../components/PageHeader.vue';
+import { money, fmtNum, fmtDate } from '../store.js';
+import { toast, toastError, confirmAction } from '../ui.js';
+import NavBar from '../components/NavBar.vue';
+import ListGroup from '../components/ListGroup.vue';
+import ListRow from '../components/ListRow.vue';
 import PaymentsPanel from '../components/PaymentsPanel.vue';
-import ContactButtons from '../components/ContactButtons.vue';
 import ClientPicker from '../components/ClientPicker.vue';
+import Skeleton from '../components/Skeleton.vue';
 
 const route = useRoute();
 const router = useRouter();
 const id = Number(route.params.id);
 const s = ref(null);
-const editClient = ref(false);
 
 async function load() {
   try {
@@ -26,18 +28,17 @@ onMounted(load);
 async function setClient(clientId) {
   try {
     s.value = await api.put(`/sales/${id}`, { client_id: clientId, notes: s.value.notes });
-    editClient.value = false;
-    toast('Client associé');
+    toast(clientId ? 'Client associé' : 'Client retiré');
   } catch (e) {
     toastError(e);
   }
 }
 
 async function cancel() {
-  if (!confirm(`Annuler la vente #${id} ? Les articles seront remis en stock et les paiements supprimés.`)) return;
+  if (!(await confirmAction('Les articles seront remis en stock et les paiements supprimés.', { title: `Annuler la vente #${id} ?`, confirm: 'Annuler la vente' }))) return;
   try {
     await api.del(`/sales/${id}`);
-    toast('Vente annulée, stock rétabli');
+    toast('Vente annulée · stock rétabli');
     router.replace('/ventes');
   } catch (e) {
     toastError(e);
@@ -47,39 +48,37 @@ async function cancel() {
 
 <template>
   <div class="page">
-    <PageHeader :title="`🧾 Vente #${id}`" back />
-    <div v-if="s" class="stack">
-      <div class="card stack">
-        <div class="row between">
-          <router-link v-if="s.client_id" :to="`/clients/${s.client_id}`" class="strong">👤 {{ s.client_name }}</router-link>
-          <span v-else class="muted">Client de passage</span>
-          <button class="btn btn-sm" @click="editClient = !editClient">{{ s.client_id ? 'Changer' : '➕ Associer un client' }}</button>
+    <NavBar :reveal-at="100" :title="`Vente #${id}`" back="/ventes" />
+    <Skeleton v-if="!s" :rows="4" />
+    <template v-else>
+      <div class="hero" style="padding: 12px 0 4px">
+        <div class="footnote secondary">Vente #{{ s.id }} · {{ fmtDate(s.created_at, true) }}</div>
+        <div class="hero-amount">{{ money(s.total) }}</div>
+        <div class="hero-pills">
+          <span v-if="s.balance > 0.009" class="pill orange">Reste {{ money(s.balance) }}</span>
+          <span v-else class="pill green">Payée</span>
         </div>
-        <ClientPicker v-if="editClient" :model-value="s.client_id" @update:model-value="setClient" />
-        <div class="small muted">{{ fmtDate(s.created_at, true) }}</div>
-        <ContactButtons v-if="s.client_id" :phone="s.client_phone" :whatsapp="s.client_whatsapp" />
       </div>
 
-      <div class="card">
-        <table class="table">
-          <thead><tr><th>Article</th><th class="right">Qté</th><th class="right">Prix</th><th class="right">Total</th></tr></thead>
-          <tbody>
-            <tr v-for="l in s.lines" :key="l.id">
-              <td><router-link v-if="l.item_id" :to="`/stock/${l.item_id}`">{{ l.name }}</router-link><template v-else>{{ l.name }}</template></td>
-              <td class="right">{{ fmtNum(l.qty) }}</td>
-              <td class="right">{{ money(l.unit_price) }}</td>
-              <td class="right strong">{{ money(l.qty * l.unit_price) }}</td>
-            </tr>
-          </tbody>
-        </table>
-        <div class="row between tiny muted" style="margin-top: 8px"><span>Coût d'achat {{ money(s.cost) }}</span><span>Marge {{ money(s.total - s.cost) }}</span></div>
-      </div>
+      <ListGroup header="Client">
+        <ClientPicker :model-value="s.client_id" optional @update:model-value="setClient" />
+      </ListGroup>
 
-      <div class="card">
-        <PaymentsPanel ref-type="sale" :ref-id="id" :total="s.total" :paid="s.paid" :payments="s.payments" @changed="load" />
-      </div>
-      <div v-if="s.notes" class="card small"><div class="label">Note</div>{{ s.notes }}</div>
-      <button class="btn btn-danger" @click="cancel">↩️ Annuler la vente (remettre en stock)</button>
-    </div>
+      <ListGroup header="Articles" :footer="`Coût d'achat ${money(s.cost)} · marge ${money(s.total - s.cost)}`">
+        <ListRow
+          v-for="l in s.lines" :key="l.id" :to="l.item_id ? `/stock/${l.item_id}` : undefined" :thumb="l.photo || null" :thumb-icon="l.item_id ? '📦' : '🔩'"
+          :title="l.name" :subtitle="`${fmtNum(l.qty)} × ${money(l.unit_price)}`" :chevron="false"
+        >
+          <template #trailing><span class="bold num">{{ money(l.qty * l.unit_price) }}</span></template>
+        </ListRow>
+      </ListGroup>
+
+      <PaymentsPanel ref-type="sale" :ref-id="id" :total="s.total" :paid="s.paid" :payments="s.payments" @changed="load" />
+
+      <ListGroup v-if="s.notes" header="Note"><div class="cell text-cell">{{ s.notes }}</div></ListGroup>
+      <ListGroup>
+        <ListRow title="Annuler la vente et remettre en stock" destructive @click="cancel" />
+      </ListGroup>
+    </template>
   </div>
 </template>

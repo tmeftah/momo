@@ -1,15 +1,18 @@
 <script setup>
-import { reactive, ref, onMounted } from 'vue';
+import { reactive, ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { api } from '../api.js';
-import { toast, toastError } from '../store.js';
-import PageHeader from '../components/PageHeader.vue';
+import { toast, toastError } from '../ui.js';
+import NavBar from '../components/NavBar.vue';
+import ListGroup from '../components/ListGroup.vue';
+import Avatar from '../components/Avatar.vue';
 
 const route = useRoute();
 const router = useRouter();
 const id = route.params.id;
 const busy = ref(false);
 const form = reactive({ name: '', phone: '', whatsapp: '', address: '', notes: '' });
+const valid = computed(() => form.name.trim().length > 0);
 
 onMounted(async () => {
   if (!id) return;
@@ -22,6 +25,7 @@ onMounted(async () => {
 });
 
 async function save() {
+  if (!valid.value || busy.value) return;
   busy.value = true;
   try {
     const s = id ? await api.put(`/suppliers/${id}`, form) : await api.post('/suppliers', form);
@@ -37,14 +41,23 @@ async function save() {
 
 <template>
   <div class="page">
-    <PageHeader :title="id ? 'Modifier le fournisseur' : 'Nouveau fournisseur'" back />
-    <form class="stack" @submit.prevent="save">
-      <label class="field"><span>Nom *</span><input v-model="form.name" required /></label>
-      <label class="field"><span>Téléphone</span><input v-model="form.phone" type="tel" inputmode="tel" /></label>
-      <label class="field"><span>WhatsApp</span><input v-model="form.whatsapp" type="tel" inputmode="tel" placeholder="Si différent du téléphone" /></label>
-      <label class="field"><span>Adresse / site web</span><input v-model="form.address" /></label>
-      <label class="field"><span>Notes</span><textarea v-model="form.notes" placeholder="Délais, conditions, produits phares…" /></label>
-      <button class="btn btn-primary btn-lg" :disabled="busy">💾 Enregistrer</button>
+    <NavBar :reveal-at="44" :title="id ? 'Modifier' : 'Nouveau fournisseur'" back>
+      <button class="nav-btn" :disabled="!valid || busy" @click="save">OK</button>
+    </NavBar>
+    <form @submit.prevent="save">
+      <div class="hero" style="padding-top: 8px"><Avatar :name="form.name || '?'" :size="88" /></div>
+      <ListGroup>
+        <label class="cell field stacked"><span class="field-label">Nom</span><input v-model="form.name" placeholder="Nom du fournisseur" /></label>
+      </ListGroup>
+      <ListGroup header="Contact">
+        <label class="cell field"><span class="field-label">Téléphone</span><input v-model="form.phone" type="tel" inputmode="tel" placeholder="—" /></label>
+        <label class="cell field"><span class="field-label">WhatsApp</span><input v-model="form.whatsapp" type="tel" inputmode="tel" placeholder="Si différent" /></label>
+        <label class="cell field"><span class="field-label">Adresse / site</span><input v-model="form.address" placeholder="—" /></label>
+      </ListGroup>
+      <ListGroup>
+        <label class="cell field stacked"><span class="field-label">Notes</span><textarea v-model="form.notes" placeholder="Délais, conditions, produits phares…" /></label>
+      </ListGroup>
+      <button class="btn filled lg block mt" :disabled="!valid || busy">{{ id ? 'Enregistrer' : 'Créer le fournisseur' }}</button>
     </form>
   </div>
 </template>
