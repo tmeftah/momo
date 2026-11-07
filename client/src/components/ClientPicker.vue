@@ -74,7 +74,7 @@ async function create() {
 
 <template>
   <ListRow v-if="selected" :avatar="selected.name" :title="selected.name" :subtitle="selected.phone || selected.whatsapp || label" chevron @click="show" />
-  <ListRow v-else :icon="UserRound" tile="gray" :title="label" :value="optional ? 'Client de passage' : 'Choisir'" chevron @click="show" />
+  <ListRow v-else :icon="UserRound" tile="accent" :title="label" :value="optional ? 'Client de passage' : 'Choisir'" chevron @click="show" />
 
   <BottomSheet
     :open="open" full :title="creating ? 'Nouveau client' : 'Choisir un client'"
@@ -84,7 +84,7 @@ async function create() {
     <template v-if="!creating">
       <SearchField ref="search" v-model="query" placeholder="Nom ou téléphone" />
       <ListGroup>
-        <ListRow :icon="UserPlus" tile="blue" :title="query.trim() ? `Créer « ${query.trim()} »` : 'Nouveau client'" action @click="startCreate" />
+        <ListRow :icon="UserPlus" tile="accent" :title="query.trim() ? `Créer « ${query.trim()} »` : 'Nouveau client'" action @click="startCreate" />
         <ListRow v-if="optional && selected" title="Client de passage (aucun)" action @click="choose(null)" />
       </ListGroup>
       <ListGroup v-if="results.length" :header="query ? 'Résultats' : 'Clients'">
