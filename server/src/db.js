@@ -169,6 +169,30 @@ const MIGRATIONS = [
     created_at TEXT NOT NULL DEFAULT ${NOW}, updated_at TEXT
   );
   `,
+  // Catalog of recurring repair tasks (prestations) with a default price,
+  // and the tasks done on each repair (name and price copied, editable per repair).
+  `
+  CREATE TABLE tasks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    price REAL NOT NULL DEFAULT 0,
+    notes TEXT,
+    created_at TEXT NOT NULL DEFAULT ${NOW}, updated_at TEXT
+  );
+  CREATE INDEX idx_tasks_name ON tasks(name);
+
+  CREATE TABLE repair_tasks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    repair_id INTEGER NOT NULL REFERENCES repairs(id) ON DELETE CASCADE,
+    task_id INTEGER REFERENCES tasks(id) ON DELETE SET NULL,
+    name TEXT NOT NULL,
+    qty REAL NOT NULL DEFAULT 1,
+    price REAL NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT ${NOW}
+  );
+  CREATE INDEX idx_repair_tasks_repair ON repair_tasks(repair_id);
+  CREATE INDEX idx_repair_tasks_task ON repair_tasks(task_id);
+  `,
 ];
 
 // "2" rather than "2.0" in text summaries
@@ -188,13 +212,15 @@ DROP VIEW IF EXISTS v_suppliers;
 DROP VIEW IF EXISTS v_connectors;
 DROP VIEW IF EXISTS v_adaptations;
 DROP VIEW IF EXISTS v_solutions;
+DROP VIEW IF EXISTS v_tasks;
 
 CREATE VIEW v_repairs AS
 SELECT x.*,
-  ROUND(x.parts_total + x.labor, 2) AS total,
-  ROUND(x.parts_total + x.labor - x.paid, 2) AS balance
+  ROUND(x.tasks_total + x.parts_total + x.labor, 2) AS total,
+  ROUND(x.tasks_total + x.parts_total + x.labor - x.paid, 2) AS balance
 FROM (
   SELECT r.*, c.name AS client_name, c.phone AS client_phone, c.whatsapp AS client_whatsapp,
+    COALESCE((SELECT SUM(t.qty * t.price) FROM repair_tasks t WHERE t.repair_id = r.id), 0) AS tasks_total,
     COALESCE((SELECT SUM(l.qty * l.unit_price) FROM lines l WHERE l.ref_type = 'repair' AND l.ref_id = r.id), 0) AS parts_total,
     COALESCE((SELECT SUM(l.qty * l.unit_cost) FROM lines l WHERE l.ref_type = 'repair' AND l.ref_id = r.id), 0) AS parts_cost,
     COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.ref_type = 'repair' AND p.ref_id = r.id), 0) AS paid,
@@ -281,6 +307,13 @@ CREATE VIEW v_adaptations AS
 SELECT a.*, c.name AS connector_name,
   (SELECT filename FROM photos ph WHERE ph.ref_type = 'adaptation' AND ph.ref_id = a.id ORDER BY ph.id LIMIT 1) AS photo
 FROM adaptations a LEFT JOIN connectors c ON c.id = a.connector_id;
+
+-- uses / last_used_at put the tasks done most often at the top of the picker
+CREATE VIEW v_tasks AS
+SELECT t.*,
+  (SELECT COUNT(*) FROM repair_tasks rt WHERE rt.task_id = t.id) AS uses,
+  (SELECT MAX(created_at) FROM repair_tasks rt WHERE rt.task_id = t.id) AS last_used_at
+FROM tasks t;
 
 CREATE VIEW v_solutions AS
 SELECT s.*,

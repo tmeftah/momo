@@ -6,8 +6,9 @@ import {
   VEHICLE_TYPES, REPAIR_STATUSES, PRIORITIES, REPAIR_CATEGORIES,
   ELECTRONIC_INTERVENTIONS, BATTERY_INTERVENTIONS, BATTERY_KINDS, CELL_TYPES,
 } from '../constants.js';
-import { settings } from '../store.js';
-import { toast, toastError, haptic } from '../ui.js';
+import { Plus } from 'lucide-vue-next';
+import { settings, money } from '../store.js';
+import { toast, toastError, haptic, confirmAction } from '../ui.js';
 import NavBar from '../components/NavBar.vue';
 import ListGroup from '../components/ListGroup.vue';
 import ListRow from '../components/ListRow.vue';
@@ -15,6 +16,7 @@ import ClientPicker from '../components/ClientPicker.vue';
 import PickerRow from '../components/PickerRow.vue';
 import Segmented from '../components/Segmented.vue';
 import CellGroups from '../components/CellGroups.vue';
+import TaskPickerSheet from '../components/TaskPickerSheet.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -38,6 +40,16 @@ const form = reactive({
   labor: '', status: 'en_attente', priority: 'normal', due_date: '', notes: '',
   details: emptyDetails(),
 });
+
+// New repair only: catalog tasks picked up front (on an existing repair they are edited from its page)
+const tasks = ref([]);
+const pickingTasks = ref(false);
+const tasksTotal = computed(() => tasks.value.reduce((s, t) => s + t.price, 0));
+const addTask = (t) => tasks.value.push({ task_id: t.id, name: t.name, price: t.price });
+const addFreeTask = (t) => tasks.value.push(t);
+async function removeTask(i) {
+  if (await confirmAction('', { title: `Retirer « ${tasks.value[i].name} » ?`, confirm: 'Retirer la prestation' })) tasks.value.splice(i, 1);
+}
 
 const isBattery = computed(() => form.category === 'batterie');
 const interventionOptions = computed(() => (isBattery.value ? BATTERY_INTERVENTIONS : ELECTRONIC_INTERVENTIONS));
@@ -94,6 +106,7 @@ async function save() {
   busy.value = true;
   try {
     const body = { ...form, labor: Number(form.labor) || 0, details: cleanDetails() };
+    if (!id) body.tasks = tasks.value;
     const r = id ? await api.put(`/repairs/${id}`, body) : await api.post('/repairs', body);
     toast(id ? 'Réparation enregistrée' : 'Réparation créée');
     router.replace(`/reparations/${r.id}`);
@@ -184,7 +197,15 @@ async function save() {
         <label class="cell field stacked"><span class="field-label">Solution utilisée</span><textarea v-model="form.details.solution" /></label>
       </ListGroup>
 
-      <ListGroup header="Atelier" footer="Les pièces s'ajoutent depuis la fiche : le stock est déduit automatiquement. Total = pièces + main-d'œuvre.">
+      <ListGroup v-if="!id" header="Prestations">
+        <ListRow v-for="(t, i) in tasks" :key="i" :title="t.name" @click="removeTask(i)">
+          <template #trailing><span class="bold num">{{ money(t.price) }}</span></template>
+        </ListRow>
+        <ListRow :icon="Plus" tile="accent" title="Ajouter une prestation" action @click="pickingTasks = true" />
+        <template v-if="tasks.length" #footer>Total prestations <b class="num" style="color: var(--label)">{{ money(tasksTotal) }}</b>. Touchez une ligne pour la retirer.</template>
+      </ListGroup>
+
+      <ListGroup header="Atelier" footer="Les pièces s'ajoutent depuis la fiche : le stock est déduit automatiquement. Total = prestations + pièces + main-d'œuvre.">
         <label class="cell field stacked"><span class="field-label">Diagnostic</span><textarea v-model="form.diagnosis" placeholder="Panne constatée…" /></label>
         <label class="cell field stacked"><span class="field-label">Travail effectué</span><textarea v-model="form.work_done" placeholder="Ce qui a été fait…" /></label>
         <label class="cell field"><span class="field-label">Main-d'œuvre</span><input v-model="form.labor" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0" /><span class="unit">{{ settings.currency }}</span></label>
@@ -199,5 +220,6 @@ async function save() {
 
       <button class="btn filled lg block mt" :disabled="busy">{{ id ? 'Enregistrer' : 'Créer la réparation' }}</button>
     </form>
+    <TaskPickerSheet :open="pickingTasks" @close="pickingTasks = false" @pick="addTask" @free="addFreeTask" />
   </div>
 </template>

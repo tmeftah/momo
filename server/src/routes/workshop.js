@@ -1,6 +1,6 @@
 import { db, nowLocal } from '../db.js';
 import { crud } from '../lib/crud.js';
-import { eq, inList, flag, httpError } from '../lib/util.js';
+import { eq, inList, flag, httpError, num, round2 } from '../lib/util.js';
 import { getLines, addLine, updateLine, removeLine, removeLinesOf, getPayments, removePaymentsOf } from '../lib/ledger.js';
 
 const PRIORITY_ORDER = "CASE priority WHEN 'urgent' THEN 0 WHEN 'normal' THEN 1 ELSE 2 END";
@@ -28,6 +28,7 @@ export default async function workshopRoutes(app) {
     order: `CASE WHEN status = 'livree' THEN 1 ELSE 0 END, ${PRIORITY_ORDER}, id DESC`,
     photoRef: 'repair',
     extend: (row) => {
+      row.tasks = getRepairTasks(row.id);
       row.lines = getLines('repair', row.id);
       row.payments = getPayments('repair', row.id);
       row.diagnostic = row.diagnostic_id
@@ -36,6 +37,11 @@ export default async function workshopRoutes(app) {
       return row;
     },
     beforeCreate: (data) => validateRepair(data),
+    // New repair form can send the catalog tasks picked: tasks: [{ task_id, qty?, price? }]
+    afterCreate: (id, data, body) => {
+      if (!Array.isArray(body.tasks)) return;
+      for (const t of body.tasks) addRepairTask(id, t);
+    },
     beforeUpdate: (data, existing) => {
       validateRepair(data);
       if (data.status && data.status !== existing.status) {
@@ -69,6 +75,78 @@ export default async function workshopRoutes(app) {
     const id = Number(req.params.id);
     db().prepare('UPDATE repairs SET notified_at = ? WHERE id = ?').run(nowLocal(), id);
     return repairs.getOne(id);
+  });
+
+  // ---------- Task catalog (prestations) ----------
+  crud(app, {
+    path: '/tasks',
+    table: 'tasks',
+    view: 'v_tasks',
+    fields: ['name', 'price', 'notes'],
+    required: ['name'],
+    numbers: ['price'],
+    search: ['name', 'notes'],
+    order: 'uses DESC, name COLLATE NOCASE',
+    beforeCreate: validateTask,
+    beforeUpdate: validateTask,
+  });
+
+  function validateTask(data) {
+    if ('price' in data && data.price < 0) throw httpError(400, 'Prix invalide');
+  }
+
+  function getRepairTasks(repairId) {
+    return db().prepare('SELECT * FROM repair_tasks WHERE repair_id = ? ORDER BY id').all(repairId);
+  }
+
+  /** From the catalog (task_id) or typed on the spot; save: true also adds a typed task to the catalog. */
+  function addRepairTask(repairId, input = {}) {
+    const qty = num(input.qty, 1);
+    if (qty <= 0) throw httpError(400, 'Quantité invalide');
+    let task = null;
+    if (input.task_id) {
+      task = db().prepare('SELECT * FROM tasks WHERE id = ?').get(Number(input.task_id));
+      if (!task) throw httpError(404, 'Prestation introuvable');
+    }
+    const name = String(input.name ?? task?.name ?? '').trim();
+    if (!name) throw httpError(400, 'Nom de la prestation manquant');
+    const price = round2(num(input.price, task?.price ?? 0));
+    if (price < 0) throw httpError(400, 'Prix invalide');
+    if (!task && input.save) {
+      const info = db().prepare('INSERT INTO tasks (name, price) VALUES (?, ?)').run(name, price);
+      task = { id: info.lastInsertRowid };
+    }
+    db()
+      .prepare('INSERT INTO repair_tasks (repair_id, task_id, name, qty, price) VALUES (?, ?, ?, ?, ?)')
+      .run(repairId, task?.id ?? null, name, qty, price);
+  }
+
+  // ---------- Tasks done on a repair ----------
+  app.post('/repairs/:id/tasks', async (req) => {
+    const id = Number(req.params.id);
+    repairs.getOne(id);
+    db().transaction(() => addRepairTask(id, req.body || {}))();
+    return repairs.getOne(id);
+  });
+
+  app.put('/repair-tasks/:id', async (req) => {
+    const t = db().prepare('SELECT * FROM repair_tasks WHERE id = ?').get(Number(req.params.id));
+    if (!t) throw httpError(404, 'Prestation introuvable');
+    const b = req.body || {};
+    const qty = b.qty !== undefined ? num(b.qty, t.qty) : t.qty;
+    const price = b.price !== undefined ? round2(num(b.price, t.price)) : t.price;
+    const name = b.name !== undefined ? String(b.name).trim() || t.name : t.name;
+    if (qty <= 0) throw httpError(400, 'Quantité invalide');
+    if (price < 0) throw httpError(400, 'Prix invalide');
+    db().prepare('UPDATE repair_tasks SET qty = ?, price = ?, name = ? WHERE id = ?').run(qty, price, name, t.id);
+    return repairs.getOne(t.repair_id);
+  });
+
+  app.delete('/repair-tasks/:id', async (req) => {
+    const t = db().prepare('SELECT * FROM repair_tasks WHERE id = ?').get(Number(req.params.id));
+    if (!t) throw httpError(404, 'Prestation introuvable');
+    db().prepare('DELETE FROM repair_tasks WHERE id = ?').run(t.id);
+    return repairs.getOne(t.repair_id);
   });
 
   // ---------- Parts used in a repair (live stock decrement) ----------

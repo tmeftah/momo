@@ -38,6 +38,7 @@ const routes = [
   { path: '/clients/:id/modifier', component: v('ClientForm'), meta: { tab: 'clients', title: 'Modifier' } },
 
   { path: '/plus', component: v('MoreView'), meta: { tab: 'plus', root: true, title: 'Plus' } },
+  { path: '/prestations', component: v('TasksList'), meta: { tab: 'plus', title: 'Prestations' } },
   { path: '/planning', component: v('PlanningView'), meta: { tab: 'plus', title: 'Planning', wide: true } },
   { path: '/connecteurs', component: v('ConnectorsList'), meta: { tab: 'plus', title: 'Connecteurs' } },
   { path: '/connecteurs/nouveau', component: v('ConnectorForm'), meta: { tab: 'plus', title: 'Nouveau' } },

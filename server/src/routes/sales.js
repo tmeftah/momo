@@ -174,7 +174,7 @@ export default async function salesRoutes(app) {
       .get(range);
     const delivered = db()
       .prepare(
-        `SELECT COUNT(*) AS n, COALESCE(SUM(total), 0) AS total, COALESCE(SUM(labor), 0) AS labor,
+        `SELECT COUNT(*) AS n, COALESCE(SUM(total), 0) AS total, COALESCE(SUM(labor + tasks_total), 0) AS labor,
            COALESCE(SUM(parts_total), 0) AS parts_total, COALESCE(SUM(parts_cost), 0) AS parts_cost
          FROM v_repairs WHERE delivered_at >= @from AND delivered_at < date(@to, '+1 day')`
       )

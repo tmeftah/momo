@@ -11,7 +11,7 @@ const route = useRoute();
 const router = useRouter();
 
 // List screens stay alive so going back is instant and keeps the scroll position
-const CACHED = ['HomeView', 'SaleNew','WorkshopView', 'StockList', 'ClientsList', 'SalesList', 'DiagnosticsList', 'ConnectorsList', 'KnowledgeList', 'SuppliersList', 'MoreView', 'PlanningView'];
+const CACHED = ['HomeView', 'SaleNew','WorkshopView', 'StockList', 'ClientsList', 'SalesList', 'DiagnosticsList', 'ConnectorsList', 'KnowledgeList', 'SuppliersList', 'TasksList', 'MoreView', 'PlanningView'];
 
 function restoreScroll() {
   const saved = nav.direction === 'pop' ? scrollMemory.get(route.fullPath) : 0;

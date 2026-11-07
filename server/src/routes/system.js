@@ -19,7 +19,7 @@ const SETTINGS_DEFAULTS = {
   wa_ready_template: 'Bonjour {client}, votre {vehicule} est prêt(e) ✅. Montant à régler : {reste}. À bientôt ! — {atelier}',
 };
 const AUTO_RE = /^vae-\d{4}-\d{2}-\d{2}\.db$/;
-const EXPORT_TABLES = ['clients', 'suppliers', 'items', 'stock_movements', 'repairs', 'diagnostics', 'sales', 'purchases', 'lines', 'payments', 'photos', 'connectors', 'adaptations', 'solutions'];
+const EXPORT_TABLES = ['clients', 'suppliers', 'items', 'stock_movements', 'repairs', 'diagnostics', 'sales', 'purchases', 'lines', 'payments', 'photos', 'connectors', 'adaptations', 'solutions', 'tasks', 'repair_tasks'];
 
 const stamp = () => new Date().toISOString().replace(/[:T]/g, '-').slice(0, 19);
 

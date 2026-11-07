@@ -13,6 +13,7 @@ import PickerRow from '../components/PickerRow.vue';
 import Segmented from '../components/Segmented.vue';
 import ActionButtons from '../components/ActionButtons.vue';
 import LinesEditor from '../components/LinesEditor.vue';
+import TasksEditor from '../components/TasksEditor.vue';
 import PaymentsPanel from '../components/PaymentsPanel.vue';
 import PhotoGallery from '../components/PhotoGallery.vue';
 import RepairDetailsCard from '../components/RepairDetailsCard.vue';
@@ -184,9 +185,11 @@ async function remove() {
 
       <RepairDetailsCard :category="r.category" :details="r.details" />
 
+      <TasksEditor :repair-id="id" :tasks="r.tasks" @changed="load" />
+
       <LinesEditor :repair-id="id" :lines="r.lines" @changed="load" />
 
-      <ListGroup header="Main-d'œuvre">
+      <ListGroup header="Main-d'œuvre" footer="En plus des prestations, pour un travail hors catalogue.">
         <label class="cell field"><span class="field-label">Montant</span><input v-model="labor" type="number" step="0.01" min="0" inputmode="decimal" @change="saveLabor" @keyup.enter="$event.target.blur()" /><span class="unit">{{ settings.currency }}</span></label>
       </ListGroup>
 

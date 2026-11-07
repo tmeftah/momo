@@ -17,7 +17,7 @@ import { collectPhotos, unlinkFiles } from './photos.js';
  * o.order       ORDER BY clause
  * o.photoRef    photos.ref_type owned by this entity (deleted with it)
  * o.extend(row) adds related data on GET /:id
- * o.beforeCreate(data, body) / o.afterCreate(id, data) / o.beforeUpdate(data, existing) / o.beforeDelete(id)
+ * o.beforeCreate(data, body) / o.afterCreate(id, data, body) / o.beforeUpdate(data, existing) / o.beforeDelete(id)
  */
 export function crud(app, o) {
   const view = o.view || o.table;
@@ -99,7 +99,7 @@ export function crud(app, o) {
       : `INSERT INTO ${o.table} DEFAULT VALUES`;
     const id = db().transaction(() => {
       const info = db().prepare(sql).run(data);
-      o.afterCreate?.(info.lastInsertRowid, data);
+      o.afterCreate?.(info.lastInsertRowid, data, body);
       return info.lastInsertRowid;
     })();
     return getOne(id);

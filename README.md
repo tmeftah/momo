@@ -10,18 +10,19 @@ French UI, mobile-first, installable on iPhone and Android as a PWA.
 | Tab | What it does |
 |---|---|
 | 🏠 Accueil | Dashboard: repairs by status, open diagnostics, low stock, today's sales, cash collected, customer credit + quick actions |
-| 🔧 Atelier | Repairs (general / electronic / charger adaptation / lithium battery), 7 statuses, priority, parts from stock, labour, payments, before/after photos, WhatsApp "ready" message |
+| 🔧 Atelier | Repairs (general / electronic / charger adaptation / lithium battery), 7 statuses, priority, tasks from the catalog, parts from stock, labour, payments, before/after photos, WhatsApp "ready" message |
 | 📦 Stock | Items with photo, category, voltage, power, min stock, purchase/sale price + margin, location, movement history, quick in/out |
 | 🛒 Vente | Direct sale without a repair: cart, cash / credit / exchange / loan, partial payment, stock decremented automatically |
 | 👥 Clients | Contact card + complete history (repairs, diagnostics, purchases, payments, credits, batteries) |
-| ⚙️ Plus | 🔋 Batteries · ⚡ Diagnostic · 🔌 Connectors & adaptations · 📚 Knowledge base · 📇 Suppliers & purchases · 📅 Planning · 💰 Cash register · ⚙️ Settings |
+| ⚙️ Plus | 🔋 Batteries · ⚡ Diagnostic · 🔌 Connectors & adaptations · 📚 Knowledge base · 📇 Suppliers & purchases · 📅 Planning · 🧾 Tasks (prestations) · 💰 Cash register · ⚙️ Settings |
 
 Everything is linked: client ↔ repair/diagnostic/sale ↔ lines ↔ stock movements ↔ payments ↔ history.
 
 ### Business rules
 
 - **Stock** goes down when a part is added to a repair or sold, and goes up on a supplier purchase. Removing a line, cancelling a sale or deleting a repair puts the items back. Every change is logged in `stock_movements`.
-- **Total**: repair = parts + labour; diagnostic = its own price (billable even if the client walks away); sale = sum of lines.
+- **Tasks (prestations)**: a catalog of recurring repair tasks with a default price, sorted by how often they are used. Adding one to a repair copies its name and price, which can then be changed for that repair only; changing or deleting a catalog task never changes past repairs. A task typed on the spot can be saved to the catalog.
+- **Total**: repair = tasks + parts + labour; diagnostic = its own price (billable even if the client walks away); sale = sum of lines.
 - **Payments**: `especes`, `echange` and `emprunt` are recorded amounts. **Crédit** means "pay later": the amount not paid becomes customer credit. Partial payments are allowed and over-payment is refused.
 - **Customer credit**: the unpaid balance of a **delivered** repair, a **decided** diagnostic (not "client réfléchit"), or any sale.
 - **Diagnostic → repair**: one tap copies the client, vehicle, symptoms, measurements and photos.

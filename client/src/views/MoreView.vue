@@ -1,5 +1,5 @@
 <script setup>
-import { Smartphone, BatteryCharging, Activity, CalendarDays, Cable, BookOpen, Wallet, Receipt, Truck, Settings, Lock } from 'lucide-vue-next';
+import { Smartphone, BatteryCharging, Activity, ClipboardList, CalendarDays, Cable, BookOpen, Wallet, Receipt, Truck, Settings, Lock } from 'lucide-vue-next';
 import { useRouter } from 'vue-router';
 import { api, session } from '../api.js';
 import { canInstall, openInstall } from '../pwa.js';
@@ -24,6 +24,7 @@ async function lock() {
     <ListGroup header="Atelier">
       <ListRow to="/batteries" :icon="BatteryCharging" tile="accent" title="Batteries lithium" />
       <ListRow to="/diagnostics" :icon="Activity" tile="accent" title="Diagnostics" />
+      <ListRow to="/prestations" :icon="ClipboardList" tile="accent" title="Prestations" subtitle="Travaux courants et leur prix" />
       <ListRow to="/planning" :icon="CalendarDays" tile="accent" title="Planning" />
     </ListGroup>
     <ListGroup header="Bibliothèque">
