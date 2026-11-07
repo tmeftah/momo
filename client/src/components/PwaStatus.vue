@@ -30,9 +30,9 @@ function update() {
       <Transition name="dock">
         <div v-if="pwa.updateReady && !hideUpdate" class="dock-card">
           <span class="tile bg-blue"><Sparkles :size="18" /></span>
-          <div class="grow">
+          <div class="grow dock-text">
             <div class="headline">Nouvelle version</div>
-            <div class="footnote secondary">Prête à être installée</div>
+            <div class="footnote secondary">Prête à installer</div>
           </div>
           <button class="btn filled sm" :disabled="updating" @click="update">{{ updating ? '…' : 'Mettre à jour' }}</button>
           <button class="dock-x" aria-label="Plus tard" @click="hideUpdate = true"><X :size="16" :stroke-width="2.6" /></button>
@@ -54,18 +54,18 @@ function update() {
     </div>
 
     <ListGroup v-if="pwa.ios" header="Sur iPhone / iPad (Safari)">
-      <div class="cell has-tile"><span class="tile bg-blue"><Share :size="17" /></span><span class="cell-main">1. Touchez <b>Partager</b> dans la barre de Safari</span></div>
-      <div class="cell has-tile"><span class="tile bg-gray"><SquarePlus :size="17" /></span><span class="cell-main">2. Choisissez <b>Sur l'écran d'accueil</b></span></div>
-      <div class="cell has-tile"><span class="tile bg-green"><Smartphone :size="17" /></span><span class="cell-main">3. Touchez <b>Ajouter</b></span></div>
+      <div class="cell has-tile"><span class="tile bg-blue"><Share :size="17" /></span><span class="cell-main"><span>1. Touchez <b>Partager</b> dans la barre de Safari</span></span></div>
+      <div class="cell has-tile"><span class="tile bg-gray"><SquarePlus :size="17" /></span><span class="cell-main"><span>2. Choisissez <b>Sur l'écran d'accueil</b></span></span></div>
+      <div class="cell has-tile"><span class="tile bg-green"><Smartphone :size="17" /></span><span class="cell-main"><span>3. Touchez <b>Ajouter</b></span></span></div>
     </ListGroup>
     <ListGroup v-else header="Sur Android (Chrome)">
-      <div class="cell has-tile"><span class="tile bg-gray"><EllipsisVertical :size="17" /></span><span class="cell-main">1. Ouvrez le menu <b>⋮</b> du navigateur</span></div>
-      <div class="cell has-tile"><span class="tile bg-blue"><SquarePlus :size="17" /></span><span class="cell-main">2. Touchez <b>Installer l'application</b></span></div>
+      <div class="cell has-tile"><span class="tile bg-gray"><EllipsisVertical :size="17" /></span><span class="cell-main"><span>1. Ouvrez le menu <b>⋮</b> du navigateur</span></span></div>
+      <div class="cell has-tile"><span class="tile bg-blue"><SquarePlus :size="17" /></span><span class="cell-main"><span>2. Touchez <b>Installer l'application</b></span></span></div>
     </ListGroup>
 
     <ListGroup header="Avantages">
-      <div class="cell has-tile"><span class="tile bg-yellow"><Zap :size="17" /></span><span class="cell-main">Plein écran, démarrage instantané</span></div>
-      <div class="cell has-tile"><span class="tile bg-indigo"><CloudOff :size="17" /></span><span class="cell-main">Consultation des fiches même sans réseau</span></div>
+      <div class="cell has-tile"><span class="tile bg-yellow"><Zap :size="17" /></span><span class="cell-main"><span>Plein écran, démarrage instantané</span></span></div>
+      <div class="cell has-tile"><span class="tile bg-indigo"><CloudOff :size="17" /></span><span class="cell-main"><span>Consultation des fiches même sans réseau</span></span></div>
     </ListGroup>
   </BottomSheet>
 </template>
@@ -86,6 +86,9 @@ function update() {
   -webkit-backdrop-filter: saturate(180%) blur(20px); backdrop-filter: saturate(180%) blur(20px);
   border: 0.5px solid var(--sep);
 }
+.dock-text { min-width: 0; }
+.dock-text > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dock-text .headline { font-size: 15px; }
 .dock-pill {
   display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
   border-radius: 999px; font-size: 13px; font-weight: 600;

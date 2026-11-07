@@ -1,7 +1,7 @@
 # 🔑 VAE Manager
 
 Personal workshop manager for electric vehicles (e-bikes, e-scooters, electric mopeds, lithium batteries for vehicles and power tools).
-French UI, mobile-first, installable on Android as a PWA.
+French UI, mobile-first, installable on iPhone and Android as a PWA.
 
 **Stack:** Vue 3 + Vite (client) · Fastify 5 + SQLite/better-sqlite3 (server) · one Docker image served behind Traefik.
 
@@ -102,6 +102,26 @@ On the phone, open `https://DOMAIN` in Chrome and choose **⋮ → Ajouter à l'
 - **Restaurer**: upload that zip. The current data is first moved to `/data/avant-restauration-<date>/`.
 - **Export JSON**: every table in a readable format.
 - From the host: `make backup` (archives the `vae-manager_vae-data` volume into `./backups/`).
+
+## Installable app (PWA)
+
+Open the site on the phone, then install it:
+- **iPhone (Safari):** Share → *Sur l'écran d'accueil* → Ajouter.
+- **Android (Chrome):** use the prompt, or menu ⋮ → *Installer l'application*.
+
+The app also offers this itself, from the Accueil tip, Plus and Réglages.
+
+Once installed:
+- **Display:** it opens full screen with its own icon and launch screen. Long-pressing the icon on Android shows shortcuts: Réparation, Vente, Diagnostic, Atelier.
+- **Offline:** the app itself is stored on the device, and screens already opened stay readable without network. A « Hors ligne » pill shows the age of that data. Changes need the connection.
+- **Updates:** after a deploy (`make update`), the app shows « Nouvelle version · Mettre à jour ».
+- **Badge:** the icon badge counts the vehicles ready to hand back, on platforms that support it.
+- **Logout:** locking the app wipes the data kept on the phone.
+
+Requirements:
+- The app must be served over HTTPS for installation and offline use; Traefik's TLS does this.
+- The service worker (`client/sw.template.js`) is generated at build time with the list of files to store.
+- Icons and iOS launch screens are in `client/public/`.
 
 ## Layout
 
