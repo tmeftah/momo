@@ -27,12 +27,67 @@ Everything is linked: client ↔ repair/diagnostic/sale ↔ lines ↔ stock move
 - **Diagnostic → repair**: one tap copies the client, vehicle, symptoms, measurements and photos.
 - **Planning**: "Terminés" are finished but the client hasn't been told yet. Clicking the WhatsApp "prévenir" button moves a repair to "À récupérer".
 
-## Deploying to the VPS (Traefik)
+## Commands (Makefile)
+
+Run `make` (or `make help`) to list every command. Requirements: Node 20+ for development, Docker with Compose v2 for the container targets.
+
+### Development
+
+| Command | What it does |
+|---|---|
+| `make install` | Install server and client dependencies (`npm ci`) |
+| `make dev` | API on :3000 + Vite UI on :5173 with hot reload. Ctrl+C stops both |
+| `make dev-server` | Only the API (auto-restart on change) |
+| `make dev-client` | Only the Vite dev server (proxies `/api` to :3000) |
+| `make build` | Build the client for production into `client/dist` |
+| `make start` | Build, then run the production build locally without Docker on :3000 |
+| `make local` | Build and run the Docker image locally on http://localhost:3000 (no Traefik) |
+| `make local-logs` | Follow the local container logs |
+| `make local-down` | Stop the local container (its data volume is kept) |
+| `make clean` | Remove `node_modules` and `client/dist` (keeps `./data`) |
+
+In development the PIN is `123456` and data goes to `./data`. Use a different PIN with `make dev DEV_PIN=987654`.
+
+**Steps for a first local run:**
 
 ```bash
-cp .env.example .env      # set DOMAIN, INITIAL_PIN, and the Traefik network/entrypoint/certresolver names
-docker compose up -d --build
+make install
+make dev            # open http://localhost:5173, PIN 123456
 ```
+
+### Production (VPS behind Traefik)
+
+| Command | What it does |
+|---|---|
+| `make up` (or `make prod`) | Build the image and start the container behind Traefik |
+| `make down` | Stop production (the `vae-data` volume is kept) |
+| `make restart` | Restart the container |
+| `make rebuild` | Rebuild the image from scratch (no cache) and restart |
+| `make update` | `git pull --ff-only`, then rebuild and restart |
+| `make logs` | Follow the last 100 log lines |
+| `make ps` | Show the container status |
+| `make shell` | Open a shell inside the container |
+| `make backup` | Archive the `vae-manager_vae-data` volume to `./backups/vae-data-<date>.tgz` |
+
+All production targets except `backup` stop with an error if `.env` is missing.
+
+**Steps for a first deployment:**
+
+```bash
+git clone git@github.com:tmeftah/momo.git && cd momo
+cp .env.example .env      # set DOMAIN, INITIAL_PIN, and the Traefik network/entrypoint/certresolver names
+make up
+make logs                 # check it started, then Ctrl+C
+```
+
+**Steps to ship a new version:**
+
+```bash
+make backup               # optional but recommended
+make update               # pulls from GitHub, rebuilds, restarts
+```
+
+### Deployment notes
 
 - The container joins the **external** Traefik network (`TRAEFIK_NETWORK`, default `traefik`) and listens on port 3000. TLS comes from your cert resolver.
 - Data is stored in the named volume `vae-data` (`/data`): `vae.db`, `uploads/` (photos), `backups/` (one SQLite snapshot a day, the last 14 are kept).
@@ -47,15 +102,6 @@ On the phone, open `https://DOMAIN` in Chrome and choose **⋮ → Ajouter à l'
 - **Restaurer**: upload that zip. The current data is first moved to `/data/avant-restauration-<date>/`.
 - **Export JSON**: every table in a readable format.
 - From the host: `make backup` (archives the `vae-manager_vae-data` volume into `./backups/`).
-
-## Local development
-
-```bash
-cd server && npm install && INITIAL_PIN=123456 npm run dev   # API on :3000, data in ./data
-cd client && npm install && npm run dev                      # UI on :5173 (proxies /api)
-```
-
-Docker locally without Traefik: `docker compose -f docker-compose.local.yml up --build` → http://localhost:3000 (PIN `123456`).
 
 ## Layout
 

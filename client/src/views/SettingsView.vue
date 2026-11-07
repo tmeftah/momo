@@ -1,7 +1,8 @@
 <script setup>
 import { reactive, ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { KeyRound, Lock, Download, FileText, ArchiveRestore, Database, Moon } from 'lucide-vue-next';
+import { KeyRound, Lock, Download, FileText, ArchiveRestore, Database, Moon, Smartphone, Sparkles } from 'lucide-vue-next';
+import { pwa, canInstall, openInstall, applyUpdate } from '../pwa.js';
 import { api, session } from '../api.js';
 import { settings } from '../store.js';
 import { toast, toastError, confirmAction, theme, setTheme } from '../ui.js';
@@ -85,6 +86,7 @@ async function restore(e) {
   }
 }
 
+const build = __BUILD_DATE__;
 const kb = (b) => (b > 1048576 ? `${(b / 1048576).toFixed(1)} Mo` : `${Math.round(b / 1024)} Ko`);
 </script>
 
@@ -97,7 +99,7 @@ const kb = (b) => (b > 1048576 ? `${(b / 1048576).toFixed(1)} Mo` : `${Math.roun
     <div class="hero" style="padding-top: 12px">
       <img src="/icon-192.png" alt="" style="width: 72px; height: 72px; border-radius: 18px" />
       <div class="hero-title">{{ form.shop_name || 'Mon atelier' }}</div>
-      <div class="hero-sub">VAE Manager · v1.0</div>
+      <div class="hero-sub">VAE Manager · v1.0 · {{ build }}</div>
     </div>
 
     <ListGroup header="Atelier" @input="dirty = true">
@@ -120,6 +122,12 @@ const kb = (b) => (b > 1048576 ? `${(b / 1048576).toFixed(1)} Mo` : `${Math.roun
         <span class="cell-main cell-title">Thème</span>
         <Segmented :model-value="theme" :options="[{ value: 'dark', label: 'Sombre' }, { value: 'light', label: 'Clair' }, { value: 'auto', label: 'Auto' }]" style="width: 210px" @update:model-value="setTheme" />
       </div>
+    </ListGroup>
+
+    <ListGroup header="Application">
+      <ListRow v-if="pwa.updateReady" :icon="Sparkles" tile="blue" title="Installer la nouvelle version" @click="applyUpdate" />
+      <ListRow v-if="canInstall()" :icon="Smartphone" tile="blue" title="Installer sur l'écran d'accueil" chevron @click="openInstall" />
+      <ListRow v-else :icon="Smartphone" tile="green" title="Mode application" :value="pwa.standalone ? 'Installée' : 'Navigateur'" />
     </ListGroup>
 
     <ListGroup header="Sécurité">

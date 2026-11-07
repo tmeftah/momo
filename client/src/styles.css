@@ -684,3 +684,20 @@ input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; marg
 
 /* Utility: hide on desktop/mobile */
 @media (min-width: 700px) { .mobile-only { display: none !important; } }
+
+/* ---------- PWA ---------- */
+.install-tip {
+  display: flex; align-items: center; gap: 12px; padding: 12px 10px 12px 12px;
+  background: var(--cell); border-radius: var(--radius); cursor: pointer;
+}
+.install-tip:active { background: var(--cell-press); }
+.install-tip img { width: 48px; height: 48px; border-radius: 11px; flex: none; }
+.dock-x {
+  width: 28px; height: 28px; flex: none; border: 0; border-radius: 50%;
+  display: grid; place-items: center; background: var(--fill-2); color: var(--label-2); cursor: pointer;
+}
+/* Installed app: no text selection / callouts on chrome, like a native app */
+@media (display-mode: standalone) {
+  .tabbar, .navbar, .btn, .chip, .option, .quick, .widget, .seg, .cell-title, .lg-header { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  input, textarea { -webkit-user-select: text; user-select: text; }
+}

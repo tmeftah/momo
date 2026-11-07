@@ -2,8 +2,9 @@
 import { ref, computed, onActivated } from 'vue';
 import {
   Wrench, Zap, ShoppingCart, UserPlus, PackagePlus, CalendarDays, Pause, PackageSearch,
-  CircleCheckBig, TriangleAlert, Banknote, CreditCard, Activity,
+  CircleCheckBig, TriangleAlert, Banknote, CreditCard, Activity, X,
 } from 'lucide-vue-next';
+import { canInstall, openInstall, setBadge } from '../pwa.js';
 import { api } from '../api.js';
 import { money, fmtNum, settings } from '../store.js';
 import { toastError } from '../ui.js';
@@ -17,11 +18,21 @@ const d = ref(null);
 async function load() {
   try {
     d.value = await api.get('/dashboard');
+    setBadge(d.value.to_collect);
   } catch (e) {
     toastError(e);
   }
 }
 onActivated(load);
+
+// « Installer l'app » tip, until installed or dismissed
+const tipKey = 'vae-install-tip';
+const tipHidden = ref((() => { try { return !!localStorage.getItem(tipKey); } catch { return false; } })());
+const showTip = computed(() => !tipHidden.value && canInstall());
+function hideTip() {
+  tipHidden.value = true;
+  try { localStorage.setItem(tipKey, '1'); } catch { /* ignore */ }
+}
 
 const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 const greeting = computed(() => (new Date().getHours() < 18 ? 'Bonjour' : 'Bonsoir'));
@@ -46,6 +57,15 @@ const quick = [
         <span class="q-icon" :style="{ background: q.color, color: q.dark ? 'var(--on-yellow)' : '#fff' }"><component :is="q.icon" :size="25" :stroke-width="2.1" /></span>
         {{ q.label }}
       </router-link>
+    </div>
+
+    <div v-if="showTip" class="install-tip mt" role="button" @click="openInstall">
+      <img src="/apple-touch-icon.png" alt="" />
+      <div class="grow">
+        <div class="headline">Installer VAE Manager</div>
+        <div class="footnote secondary">Plein écran, icône sur l'écran d'accueil, consultable hors ligne.</div>
+      </div>
+      <button class="dock-x" aria-label="Masquer" @click.stop="hideTip"><X :size="15" :stroke-width="2.6" /></button>
     </div>
 
     <template v-if="d">

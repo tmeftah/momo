@@ -1,4 +1,5 @@
 import { reactive } from 'vue';
+import { markResponse, clearOfflineData } from './pwa.js';
 
 export const session = reactive({ checked: false, configured: true, authenticated: false });
 
@@ -13,11 +14,13 @@ async function request(method, url, body) {
   try {
     res = await fetch('/api' + url, opts);
   } catch {
-    throw new Error('Serveur injoignable. Vérifiez la connexion.');
+    throw new Error(method === 'GET' ? 'Serveur injoignable. Vérifiez la connexion.' : 'Hors ligne — modification impossible pour le moment.');
   }
+  markResponse(res);
   const data = res.headers.get('content-type')?.includes('application/json') ? await res.json() : null;
   if (res.status === 401 && !url.startsWith('/auth/')) {
     session.authenticated = false;
+    clearOfflineData();
     throw new Error('Session expirée');
   }
   if (!res.ok) throw new Error(data?.error || `Erreur ${res.status}`);

@@ -1,17 +1,29 @@
 {
+  "id": "/",
   "name": "VAE Manager",
   "short_name": "VAE Manager",
-  "description": "Gestion d'atelier de véhicules électriques",
+  "description": "Gestion d'atelier : vélos, trottinettes, scooters électriques et batteries lithium",
   "lang": "fr",
+  "dir": "ltr",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#0d1014",
-  "theme_color": "#0d1014",
+  "display_override": ["standalone"],
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "categories": ["business", "productivity"],
+  "launch_handler": { "client_mode": "navigate-existing" },
   "icons": [
-    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
-    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "shortcuts": [
+    { "name": "Nouvelle réparation", "short_name": "Réparation", "url": "/reparations/nouvelle", "icons": [{ "src": "/icon-96.png", "sizes": "96x96" }] },
+    { "name": "Nouvelle vente", "short_name": "Vente", "url": "/vente", "icons": [{ "src": "/icon-96.png", "sizes": "96x96" }] },
+    { "name": "Nouveau diagnostic", "short_name": "Diagnostic", "url": "/diagnostics/nouveau", "icons": [{ "src": "/icon-96.png", "sizes": "96x96" }] },
+    { "name": "Atelier", "url": "/atelier", "icons": [{ "src": "/icon-96.png", "sizes": "96x96" }] }
   ]
 }

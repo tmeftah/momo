@@ -5,6 +5,7 @@ import { session } from './api.js';
 import { nav, scrollMemory } from './router.js';
 import TabBar from './components/TabBar.vue';
 import OverlayHost from './components/OverlayHost.vue';
+import PwaStatus from './components/PwaStatus.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -34,5 +35,6 @@ watch(
     </Transition>
   </router-view>
   <TabBar v-if="!route.meta.bare && session.authenticated" />
+  <PwaStatus />
   <OverlayHost />
 </template>

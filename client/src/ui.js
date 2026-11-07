@@ -5,6 +5,8 @@ import { reactive, ref } from 'vue';
 export function haptic(kind = 'light') {
   const pattern = { light: 8, medium: 14, success: [10, 40, 14], error: [24, 40, 24] }[kind] ?? 8;
   try {
+    // Browsers block vibration before the first tap (and log an error)
+    if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
     navigator.vibrate?.(pattern);
   } catch {
     /* not supported */

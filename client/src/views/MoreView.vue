@@ -1,7 +1,8 @@
 <script setup>
-import { BatteryCharging, Activity, CalendarDays, Cable, BookOpen, Wallet, Receipt, Truck, Settings, Lock } from 'lucide-vue-next';
+import { Smartphone, BatteryCharging, Activity, CalendarDays, Cable, BookOpen, Wallet, Receipt, Truck, Settings, Lock } from 'lucide-vue-next';
 import { useRouter } from 'vue-router';
 import { api, session } from '../api.js';
+import { canInstall, openInstall } from '../pwa.js';
 import NavBar from '../components/NavBar.vue';
 import ListGroup from '../components/ListGroup.vue';
 import ListRow from '../components/ListRow.vue';
@@ -17,6 +18,9 @@ async function lock() {
 <template>
   <div class="page">
     <NavBar title="Plus" large />
+    <ListGroup v-if="canInstall()">
+      <ListRow :icon="Smartphone" tile="blue" title="Installer l'application" subtitle="Plein écran · hors ligne · écran d'accueil" chevron @click="openInstall" />
+    </ListGroup>
     <ListGroup header="Atelier">
       <ListRow to="/batteries" :icon="BatteryCharging" tile="green" title="Batteries lithium" />
       <ListRow to="/diagnostics" :icon="Activity" tile="teal" title="Diagnostics" />

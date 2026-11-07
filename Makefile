@@ -75,10 +75,10 @@ update: prod-check ## git pull, then rebuild and restart
 logs: prod-check ## Follow production logs
 	$(COMPOSE) logs -f --tail=100
 
-ps: ## Show container status
+ps: prod-check ## Show production container status
 	$(COMPOSE) ps
 
-shell: ## Open a shell in the production container
+shell: prod-check ## Open a shell in the production container
 	$(COMPOSE) exec vae-manager sh
 
 backup: ## Archive the production data volume to ./backups/
