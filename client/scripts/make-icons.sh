@@ -33,4 +33,5 @@ for f in splash/splash-*.png; do
   magick "$TMP/i.png" \( -size "1x$gap" xc:none \) "$TMP/t.png" -background none -gravity center -append "$TMP/g.png"
   magick -size "${w}x${h}" xc:'#f2f2f7' "$TMP/g.png" -gravity center -composite -strip "$f"
 done
-echo "Icons and splash screens written to client/public"
+echo "Icons and splash screens written to client/public."
+echo "Bump ?v=N on the icon URLs in index.html and public/manifest.webmanifest so installed apps pick them up."

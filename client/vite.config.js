@@ -17,7 +17,10 @@ function serviceWorker() {
         (f) => f.startsWith('assets/') && (/\.(js|css)$/.test(f) || /inter-latin(-ext)?-wght/.test(f))
       );
       const files = ['/', '/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/apple-touch-icon.png', ...assets.map((f) => `/${f}`)];
-      const version = createHash('sha256').update(files.join()).digest('hex').slice(0, 10);
+      // Hash the content of the public files too: a redrawn icon keeps its name.
+      const hash = createHash('sha256').update(files.join());
+      for (const f of files.slice(1, 5)) hash.update(fs.readFileSync(new URL(`./public${f}`, import.meta.url)));
+      const version = hash.digest('hex').slice(0, 10);
       const source = fs
         .readFileSync(new URL('./sw.template.js', import.meta.url), 'utf8')
         .replace('__VERSION__', version)
