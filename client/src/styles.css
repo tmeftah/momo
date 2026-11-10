@@ -86,7 +86,9 @@
 *,
 *::before,
 *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html { background: var(--bg); -webkit-text-size-adjust: 100%; }
+/* overscroll-behavior must be on the root element: it turns off the browser's own
+   pull-to-refresh so only the app's (NavBar) shows. Ignored on body. */
+html { background: var(--bg); -webkit-text-size-adjust: 100%; overscroll-behavior-y: contain; }
 body {
   margin: 0;
   background: var(--bg);
@@ -98,7 +100,6 @@ body {
   font-feature-settings: 'cv11', 'ss03';
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overscroll-behavior-y: contain;
   transition: background 0.3s;
 }
 a { color: var(--tint); text-decoration: none; }
