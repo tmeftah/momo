@@ -1,9 +1,9 @@
 <script setup>
 // Photo grid + full-screen swipeable viewer (tag & delete).
-import { ref, computed, onMounted, nextTick } from 'vue';
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { Camera, Crop, Trash2, X } from 'lucide-vue-next';
 import { api, fileUrl } from '../api.js';
-import { toast, toastError, confirmAction, chooseAction } from '../ui.js';
+import { toast, toastError, confirmAction, chooseAction, lockScroll } from '../ui.js';
 import Segmented from './Segmented.vue';
 import CropEditor from './CropEditor.vue';
 
@@ -81,13 +81,18 @@ async function onFiles(e) {
 
 function openViewer(i) {
   viewer.value = i;
-  document.documentElement.style.overflow = 'hidden';
   nextTick(() => track.value?.scrollTo({ left: i * track.value.clientWidth }));
 }
 function closeViewer() {
   viewer.value = -1;
-  document.documentElement.style.overflow = '';
+  cropping.value = false;
 }
+
+// Lock page scroll while the viewer is open. Released on unmount too: the phone's
+// back button leaves the page without closing the viewer or the crop editor.
+const viewerOpen = computed(() => viewer.value >= 0);
+watch(viewerOpen, lockScroll);
+onBeforeUnmount(() => viewerOpen.value && lockScroll(false));
 function onTrackScroll() {
   const el = track.value;
   if (el) viewer.value = Math.round(el.scrollLeft / el.clientWidth);

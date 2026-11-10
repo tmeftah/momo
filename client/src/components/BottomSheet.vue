@@ -1,6 +1,7 @@
 <script setup>
 // iOS sheet: slides up, drag the header down to dismiss, blurred backdrop.
 import { ref, watch, onBeforeUnmount } from 'vue';
+import { lockScroll } from '../ui.js';
 
 const props = defineProps({
   open: Boolean,
@@ -17,9 +18,7 @@ let locked = false;
 function lock(on) {
   if (on === locked) return;
   locked = on;
-  const n = (Number(document.body.dataset.sheets) || 0) + (on ? 1 : -1);
-  document.body.dataset.sheets = Math.max(n, 0);
-  document.documentElement.style.overflow = n > 0 ? 'hidden' : '';
+  lockScroll(on);
 }
 watch(() => props.open, lock, { immediate: true });
 onBeforeUnmount(() => lock(false));

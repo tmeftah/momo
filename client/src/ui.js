@@ -48,6 +48,16 @@ export async function confirmAction(message, { confirm = 'Supprimer', title = ''
   return v === true;
 }
 
+// ---------- Page scroll lock ----------
+// Counted, so nested overlays (viewer + sheet) don't unlock each other.
+// Each overlay must call this with false when it closes or unmounts.
+let scrollLocks = 0;
+export function lockScroll(on) {
+  scrollLocks = Math.max(scrollLocks + (on ? 1 : -1), 0);
+  document.body.dataset.sheets = scrollLocks;
+  document.documentElement.style.overflow = scrollLocks > 0 ? 'hidden' : '';
+}
+
 // ---------- Theme ----------
 export const theme = ref('dark');
 const media = typeof matchMedia === 'function' ? matchMedia('(prefers-color-scheme: dark)') : null;
