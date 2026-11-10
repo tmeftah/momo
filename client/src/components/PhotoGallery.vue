@@ -1,10 +1,11 @@
 <script setup>
 // Photo grid + full-screen swipeable viewer (tag & delete).
 import { ref, computed, onMounted, nextTick } from 'vue';
-import { Camera, Trash2, X } from 'lucide-vue-next';
+import { Camera, Crop, Trash2, X } from 'lucide-vue-next';
 import { api, fileUrl } from '../api.js';
 import { toast, toastError, confirmAction, chooseAction } from '../ui.js';
 import Segmented from './Segmented.vue';
+import CropEditor from './CropEditor.vue';
 
 const props = defineProps({
   refType: { type: String, required: true },
@@ -101,6 +102,23 @@ async function retag(t) {
   }
 }
 
+// Crop / rotate the photo shown in the viewer; the server replaces the file.
+const cropping = ref(false);
+const cropBusy = ref(false);
+async function saveCrop(crop) {
+  const p = current.value;
+  cropBusy.value = true;
+  try {
+    Object.assign(p, await api.post(`/photos/${p.id}/crop`, crop));
+    cropping.value = false;
+    toast('Photo recadrée');
+  } catch (e) {
+    toastError(e);
+  } finally {
+    cropBusy.value = false;
+  }
+}
+
 async function remove() {
   const p = current.value;
   if (!(await confirmAction('', { title: 'Supprimer cette photo ?', confirm: 'Supprimer la photo' }))) return;
@@ -147,10 +165,14 @@ async function remove() {
           <div class="viewer-bar">
             <Segmented v-if="tags.length" :model-value="current.tag" :options="tags" @update:model-value="retag" />
             <span v-else />
-            <button class="icon-btn" aria-label="Supprimer" @click="remove"><Trash2 :size="20" /></button>
+            <div class="hstack" style="gap: 12px">
+              <button v-if="!current.filename.endsWith('.gif')" class="icon-btn" aria-label="Recadrer" @click="cropping = true"><Crop :size="20" /></button>
+              <button class="icon-btn" aria-label="Supprimer" @click="remove"><Trash2 :size="20" /></button>
+            </div>
           </div>
         </div>
       </Transition>
     </Teleport>
+    <CropEditor :open="cropping" :src="current ? fileUrl(current.filename) : null" :busy="cropBusy" @close="cropping = false" @confirm="saveCrop" />
   </section>
 </template>

@@ -609,6 +609,29 @@ input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; marg
 .viewer-bar .seg-thumb { background: rgba(255, 255, 255, 0.28); }
 .viewer .icon-btn { width: 44px; height: 44px; border-radius: 50%; border: 0; display: grid; place-items: center; background: rgba(255, 255, 255, 0.14); color: #fff; cursor: pointer; }
 
+/* ---------- Crop editor (always on black, like the viewer) ---------- */
+.viewer.crop { z-index: 96; }
+.crop .viewer-top .nav-btn:disabled, .crop .viewer-bar .nav-btn:disabled, .crop .icon-btn:disabled { opacity: 0.35; }
+.crop .viewer-bar .nav-btn { color: #fff; min-height: 44px; }
+.crop-stage { flex: 1; display: grid; place-items: center; overflow: hidden; touch-action: none; }
+.crop-box { position: relative; }
+.crop-box img { display: block; width: 100%; height: 100%; user-select: none; -webkit-user-select: none; -webkit-user-drag: none; pointer-events: none; }
+.crop-frame { position: absolute; outline: 1px solid rgba(255, 255, 255, 0.9); box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.6); cursor: move; touch-action: none; }
+.crop-grid { position: absolute; inset: 0; pointer-events: none; }
+.crop-grid::before, .crop-grid::after { content: ''; position: absolute; border: 0 solid rgba(255, 255, 255, 0.4); }
+.crop-grid::before { top: 0; bottom: 0; left: 33.333%; right: 33.333%; border-left-width: 1px; border-right-width: 1px; }
+.crop-grid::after { left: 0; right: 0; top: 33.333%; bottom: 33.333%; border-top-width: 1px; border-bottom-width: 1px; }
+.crop-handle { position: absolute; width: 44px; height: 44px; touch-action: none; }
+.crop-handle::after { content: ''; position: absolute; width: 20px; height: 20px; border: 3px solid #fff; }
+.crop-handle.nw { left: -22px; top: -22px; cursor: nwse-resize; }
+.crop-handle.ne { right: -22px; top: -22px; cursor: nesw-resize; }
+.crop-handle.sw { left: -22px; bottom: -22px; cursor: nesw-resize; }
+.crop-handle.se { right: -22px; bottom: -22px; cursor: nwse-resize; }
+.crop-handle.nw::after { left: 19px; top: 19px; border-right: 0; border-bottom: 0; }
+.crop-handle.ne::after { right: 19px; top: 19px; border-left: 0; border-bottom: 0; }
+.crop-handle.sw::after { left: 19px; bottom: 19px; border-right: 0; border-top: 0; }
+.crop-handle.se::after { right: 19px; bottom: 19px; border-left: 0; border-top: 0; }
+
 /* ---------- Skeleton & empty ---------- */
 .skel { background: linear-gradient(90deg, var(--fill-3) 25%, var(--fill-2) 37%, var(--fill-3) 63%); background-size: 400% 100%; animation: shimmer 1.3s ease infinite; border-radius: 6px; }
 @keyframes shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
