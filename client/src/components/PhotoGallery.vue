@@ -19,6 +19,7 @@ const uploading = ref(0);
 const viewer = ref(-1);
 const track = ref(null);
 const input = ref(null);
+const cameraInput = ref(null);
 const pendingTag = ref(null);
 const tagLabel = computed(() => Object.fromEntries(props.tags.map((t) => [t.value, t.label])));
 const current = computed(() => photos.value[viewer.value]);
@@ -31,14 +32,22 @@ onMounted(async () => {
   }
 });
 
-// With tags, ask which kind first (Avant / Après…), like an iOS menu
+// With tags, ask which kind first (Avant / Après…), then the source, like an iOS menu
 async function add() {
   if (props.tags.length) {
     const t = await chooseAction({ title: 'Ajouter des photos', actions: props.tags.map((t) => ({ label: t.label, value: t.value })) });
     if (!t) return;
     pendingTag.value = t;
   }
-  input.value.click();
+  const src = await chooseAction({
+    title: 'Ajouter des photos',
+    actions: [
+      { label: 'Prendre une photo', value: 'camera' },
+      { label: 'Choisir dans la galerie', value: 'library' },
+    ],
+  });
+  if (!src) return;
+  (src === 'camera' ? cameraInput : input).value.click();
 }
 
 // Phone photos (4–12 MB) are downscaled before upload so sending is fast on mobile data.
@@ -155,6 +164,7 @@ async function remove() {
       </button>
     </div>
     <input ref="input" type="file" accept="image/*" multiple hidden @change="onFiles" />
+    <input ref="cameraInput" type="file" accept="image/*" capture="environment" hidden @change="onFiles" />
 
     <Teleport to="body">
       <Transition name="fade">

@@ -111,7 +111,7 @@ const kb = (b) => (b > 1048576 ? `${(b / 1048576).toFixed(1)} Mo` : `${Math.roun
     </ListGroup>
     <div class="lg-footer">L'indicatif transforme « 06… » en numéro WhatsApp international. Tarif à 0 = prix du diagnostic saisi à la main.</div>
 
-    <ListGroup header="Message WhatsApp « véhicule prêt »" footer="Variables : {client} {vehicule} {total} {reste} {atelier}" @input="dirty = true">
+    <ListGroup header="Message WhatsApp « véhicule prêt »" footer="Variables : {client} {vehicule} {prestations} {total} {reste} {atelier}" @input="dirty = true">
       <label class="cell field stacked"><textarea v-model="form.wa_ready_template" rows="3" /></label>
     </ListGroup>
     <button v-if="dirty" class="btn filled block mt-s" @click="save">Enregistrer les réglages</button>

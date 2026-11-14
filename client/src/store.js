@@ -126,9 +126,11 @@ export const telLink = (raw) => (raw ? `tel:${String(raw).replace(/[^\d+]/g, '')
 export function readyMessage(repair) {
   const tpl = settings.wa_ready_template || 'Bonjour {client}, votre {vehicule} est prêt(e). Reste à payer : {reste}.';
   const vehicle = [VEHICLE[repair.vehicle_type]?.short?.toLowerCase(), repair.brand, repair.model].filter(Boolean).join(' ') || 'véhicule';
+  const tasks = (repair.tasks || []).map((t) => `- ${t.name}${t.qty > 1 ? ` ×${t.qty}` : ''}`).join('\n');
   return tpl
     .replaceAll('{client}', repair.client_name || '')
     .replaceAll('{vehicule}', vehicle)
+    .replaceAll('{prestations}', tasks)
     .replaceAll('{total}', money(repair.total))
     .replaceAll('{reste}', money(Math.max(repair.balance, 0)))
     .replaceAll('{atelier}', settings.shop_name || '');
