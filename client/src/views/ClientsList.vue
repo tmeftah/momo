@@ -30,13 +30,15 @@ watch([q, filter], () => {
   timer = setTimeout(load, 180);
 });
 
-// Contacts-style A–Z sections
-const sections = computed(() =>
-  groupBy(clients.value || [], (c) => {
+// Contacts-style A–Z sections, only once the list is long enough to need them
+const sections = computed(() => {
+  const list = clients.value || [];
+  if (list.length < 16) return list.length ? [{ key: '', items: list }] : [];
+  return groupBy(list, (c) => {
     const ch = (c.name || '#').normalize('NFD').replace(/[̀-ͯ]/g, '')[0].toUpperCase();
     return /[A-Z]/.test(ch) ? ch : '#';
-  })
-);
+  });
+});
 </script>
 
 <template>
