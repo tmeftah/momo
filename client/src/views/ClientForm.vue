@@ -1,10 +1,12 @@
 <script setup>
 import { reactive, onMounted, ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { BookUser } from 'lucide-vue-next';
 import { api } from '../api.js';
 import { toast, toastError } from '../ui.js';
 import NavBar from '../components/NavBar.vue';
 import ListGroup from '../components/ListGroup.vue';
+import ListRow from '../components/ListRow.vue';
 import Toggle from '../components/Toggle.vue';
 import Avatar from '../components/Avatar.vue';
 
@@ -26,6 +28,19 @@ onMounted(async () => {
     toastError(e);
   }
 });
+
+// Contact Picker API: Chrome/Edge on Android. Elsewhere the row is hidden.
+const canPickContact = !id && typeof navigator.contacts?.select === 'function';
+async function pickContact() {
+  try {
+    const [c] = await navigator.contacts.select(['name', 'tel']);
+    if (!c) return;
+    if (c.name?.[0]) form.name = c.name[0];
+    if (c.tel?.[0]) form.phone = c.tel[0];
+  } catch {
+    /* picker closed or unavailable */
+  }
+}
 
 async function save() {
   if (!valid.value || busy.value) return;
@@ -56,6 +71,7 @@ async function save() {
         <label class="cell field stacked"><span class="field-label">Nom</span><input v-model="form.name" placeholder="Prénom Nom" autocomplete="off" :autofocus="!id" /></label>
       </ListGroup>
       <ListGroup header="Contact">
+        <ListRow v-if="canPickContact" :icon="BookUser" tile="accent" title="Importer depuis les contacts" action @click="pickContact" />
         <label class="cell field"><span class="field-label">Téléphone</span><input v-model="form.phone" type="tel" inputmode="tel" placeholder="06 12 34 56 78" /></label>
         <div class="cell"><span class="cell-main cell-title">WhatsApp sur ce numéro</span><Toggle v-model="sameWa" /></div>
         <label v-if="!sameWa" class="cell field"><span class="field-label">WhatsApp</span><input v-model="form.whatsapp" type="tel" inputmode="tel" placeholder="Autre numéro" /></label>
