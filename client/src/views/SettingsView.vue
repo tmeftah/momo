@@ -1,7 +1,7 @@
 <script setup>
 import { reactive, ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { KeyRound, Lock, Download, FileText, ArchiveRestore, Database, Moon, Smartphone, Sparkles } from 'lucide-vue-next';
+import { KeyRound, Lock, TimerReset, Download, FileText, ArchiveRestore, Database, Moon, Smartphone, Sparkles } from 'lucide-vue-next';
 import { pwa, canInstall, openInstall, applyUpdate } from '../pwa.js';
 import { api, session } from '../api.js';
 import { settings } from '../store.js';
@@ -9,6 +9,7 @@ import { toast, toastError, confirmAction, theme, setTheme } from '../ui.js';
 import NavBar from '../components/NavBar.vue';
 import ListGroup from '../components/ListGroup.vue';
 import ListRow from '../components/ListRow.vue';
+import PickerRow from '../components/PickerRow.vue';
 import Segmented from '../components/Segmented.vue';
 import BottomSheet from '../components/BottomSheet.vue';
 
@@ -55,6 +56,19 @@ async function changePin() {
   } catch (e) {
     toastError(e);
   }
+}
+
+const AUTO_LOCK_OPTIONS = [
+  { value: '0', label: 'Jamais' },
+  { value: '5', label: 'Après 5 min' },
+  { value: '15', label: 'Après 15 min' },
+  { value: '30', label: 'Après 30 min' },
+  { value: '60', label: 'Après 1 h' },
+];
+
+async function setAutoLock(v) {
+  form.auto_lock_min = v;
+  await save();
 }
 
 async function lock() {
@@ -130,8 +144,9 @@ const kb = (b) => (b > 1048576 ? `${(b / 1048576).toFixed(1)} Mo` : `${Math.roun
       <ListRow v-else :icon="Smartphone" tile="accent" title="Mode application" :value="pwa.standalone ? 'Installée' : 'Navigateur'" />
     </ListGroup>
 
-    <ListGroup header="Sécurité">
+    <ListGroup header="Sécurité" footer="Sans activité pendant ce délai, l'application se verrouille et redemande le code PIN.">
       <ListRow :icon="KeyRound" tile="accent" title="Changer le code PIN" chevron @click="pinSheet = true" />
+      <PickerRow :model-value="String(form.auto_lock_min || '0')" label="Verrouillage automatique" :options="AUTO_LOCK_OPTIONS" :icon="TimerReset" tile="accent" @update:model-value="setAutoLock" />
       <ListRow :icon="Lock" tile="accent" title="Verrouiller maintenant" @click="lock" />
     </ListGroup>
 

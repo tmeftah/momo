@@ -12,6 +12,7 @@ export const settings = reactive({
   country_code: '33',
   diag_hourly_rate: '0',
   wa_ready_template: '',
+  auto_lock_min: '0',
 });
 
 export async function loadSettings() {

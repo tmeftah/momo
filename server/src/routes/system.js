@@ -9,7 +9,7 @@ import { config } from '../config.js';
 import { httpError } from '../lib/util.js';
 import { FILE_RE } from '../lib/photos.js';
 
-const SETTINGS_KEYS = ['shop_name', 'shop_phone', 'currency', 'country_code', 'diag_hourly_rate', 'wa_ready_template'];
+const SETTINGS_KEYS = ['shop_name', 'shop_phone', 'currency', 'country_code', 'diag_hourly_rate', 'wa_ready_template', 'auto_lock_min'];
 const SETTINGS_DEFAULTS = {
   shop_name: 'Mon atelier VAE',
   shop_phone: '',
@@ -17,6 +17,7 @@ const SETTINGS_DEFAULTS = {
   country_code: '33',
   diag_hourly_rate: '0',
   wa_ready_template: 'Bonjour {client}, votre {vehicule} est prêt(e) ✅. Montant à régler : {reste}. À bientôt ! — {atelier}',
+  auto_lock_min: '0',
 };
 const AUTO_RE = /^vae-\d{4}-\d{2}-\d{2}\.db$/;
 const EXPORT_TABLES = ['clients', 'suppliers', 'items', 'stock_movements', 'repairs', 'diagnostics', 'sales', 'purchases', 'lines', 'payments', 'photos', 'connectors', 'adaptations', 'solutions', 'tasks', 'repair_tasks'];
