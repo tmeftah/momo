@@ -50,10 +50,10 @@ async function add() {
   (src === 'camera' ? cameraInput : input).value.click();
 }
 
-// Phone photos (4–12 MB) are downscaled before upload so sending is fast on mobile data.
-// High JPEG quality on purpose: the server does the final WebP compression (~200–400 KB).
+// Phone photos (4–12 MB) are downscaled before upload to keep mobile-data use low
+// (~250–450 KB per photo); the server does the final WebP compression.
 // If the browser can't decode the file, the original is sent and the server handles it.
-async function shrink(file, max = 1920) {
+async function shrink(file, max = 1600) {
   try {
     const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
     const scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
@@ -61,7 +61,7 @@ async function shrink(file, max = 1920) {
     canvas.width = Math.round(bmp.width * scale);
     canvas.height = Math.round(bmp.height * scale);
     canvas.getContext('2d').drawImage(bmp, 0, 0, canvas.width, canvas.height);
-    const blob = await new Promise((r) => canvas.toBlob(r, 'image/jpeg', 0.9));
+    const blob = await new Promise((r) => canvas.toBlob(r, 'image/jpeg', 0.8));
     return blob && blob.size < file.size ? blob : file;
   } catch {
     return file;
