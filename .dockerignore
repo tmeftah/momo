@@ -3,6 +3,10 @@
 server/public
 data
 **/data
+backups
 .git
 .env
 *.log
+*.md
+Makefile
+docker-compose*.yml
