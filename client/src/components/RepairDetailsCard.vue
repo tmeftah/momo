@@ -6,6 +6,7 @@ import ListGroup from './ListGroup.vue';
 import ListRow from './ListRow.vue';
 import CellGroups from './CellGroups.vue';
 import Segmented from './Segmented.vue';
+import ChargeLevel from './ChargeLevel.vue';
 
 const props = defineProps({ category: String, details: Object });
 const d = computed(() => props.details || {});
@@ -39,8 +40,7 @@ const phase = computed(() => picked.value || phases.value[phases.value.length - 
       />
     </ListGroup>
     <ListGroup v-if="has('voltage_before', 'voltage_after', 'capacity_measured', 'internal_resistance', 'test_result')" header="Tests">
-      <ListRow v-if="has('voltage_before')" title="Tension avant" :value="`${d.voltage_before} V`" />
-      <ListRow v-if="has('voltage_after')" title="Tension après" :value="`${d.voltage_after} V`" />
+      <ChargeLevel v-if="has('voltage_before', 'voltage_after')" :before="d.voltage_before" :after="d.voltage_after" :series="d.config_s" :cell-type="d.cell_type" />
       <ListRow v-if="has('capacity_measured')" title="Capacité mesurée" :value="`${d.capacity_measured} Ah`" />
       <ListRow v-if="has('internal_resistance')" title="Résistance interne" :value="`${d.internal_resistance} mΩ`" />
       <div v-if="has('test_result')" class="cell text-cell" style="display: block">{{ d.test_result }}</div>

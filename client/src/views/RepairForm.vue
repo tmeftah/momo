@@ -7,7 +7,8 @@ import {
   ELECTRONIC_INTERVENTIONS, BATTERY_INTERVENTIONS, BATTERY_KINDS, CELL_TYPES,
 } from '../constants.js';
 import { Plus } from 'lucide-vue-next';
-import { settings, money } from '../store.js';
+import { settings, money, fmtNum } from '../store.js';
+import { chargeLevel } from '../battery.js';
 import { toast, toastError, haptic, confirmAction } from '../ui.js';
 import NavBar from '../components/NavBar.vue';
 import ListGroup from '../components/ListGroup.vue';
@@ -54,6 +55,19 @@ async function removeTask(i) {
 // Per-group voltages: `groups` holds the "before" measurement (older repairs only have that one)
 const CELL_PHASES = [{ value: 'groups', label: 'Avant' }, { value: 'groups_after', label: 'Après' }];
 const cellPhase = ref('groups');
+
+// Live charge estimate under the pack voltages
+const chargeHint = computed(() => {
+  const d = form.details;
+  const parts = [['avant', d.voltage_before], ['après', d.voltage_after]].filter(([, v]) => v !== '' && v !== null);
+  if (!parts.length) return 'Tension mesurée au repos : la charge est estimée à partir de la série (S) et du type de cellule.';
+  if (!(Number(d.config_s) > 0)) return 'Renseignez la série (S) pour estimer la charge.';
+  const out = parts.map(([label, v]) => {
+    const l = chargeLevel(v, d.config_s, d.cell_type);
+    return l ? `${label} ≈ ${l.pct} % (${fmtNum(l.perCell)} V par cellule)` : `${label} : tension incohérente avec ${d.config_s}S`;
+  });
+  return `Charge estimée : ${out.join(', ')}.`;
+});
 
 const isBattery = computed(() => form.category === 'batterie');
 const interventionOptions = computed(() => (isBattery.value ? BATTERY_INTERVENTIONS : ELECTRONIC_INTERVENTIONS));
@@ -177,9 +191,11 @@ async function save() {
             @update:model-value="(v) => (form.details[cellPhase] = v)"
           />
         </ListGroup>
-        <ListGroup header="Tests">
+        <ListGroup header="Tests" :footer="chargeHint">
           <label class="cell field"><span class="field-label">Tension avant</span><input v-model="form.details.voltage_before" type="number" step="0.01" inputmode="decimal" placeholder="—" /><span class="unit">V</span></label>
           <label class="cell field"><span class="field-label">Tension après</span><input v-model="form.details.voltage_after" type="number" step="0.01" inputmode="decimal" placeholder="—" /><span class="unit">V</span></label>
+        </ListGroup>
+        <ListGroup>
           <label class="cell field"><span class="field-label">Capacité mesurée</span><input v-model="form.details.capacity_measured" type="number" step="0.01" inputmode="decimal" placeholder="—" /><span class="unit">Ah</span></label>
           <label class="cell field"><span class="field-label">Résistance int.</span><input v-model="form.details.internal_resistance" type="number" step="0.1" inputmode="decimal" placeholder="—" /><span class="unit">mΩ</span></label>
           <label class="cell field stacked"><span class="field-label">Résultat des tests</span><textarea v-model="form.details.test_result" placeholder="Conclusions…" /></label>
