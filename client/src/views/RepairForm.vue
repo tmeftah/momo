@@ -8,8 +8,8 @@ import {
 } from '../constants.js';
 import { Plus } from 'lucide-vue-next';
 import { settings, money, fmtNum } from '../store.js';
-import { chargeLevel } from '../battery.js';
-import { toast, toastError, haptic, confirmAction } from '../ui.js';
+import { chargeLevel, checkPack, LIMITS } from '../battery.js';
+import { toast, toastError, haptic, confirmAction, chooseAction } from '../ui.js';
 import NavBar from '../components/NavBar.vue';
 import ListGroup from '../components/ListGroup.vue';
 import ListRow from '../components/ListRow.vue';
@@ -62,11 +62,15 @@ const chargeHint = computed(() => {
   const parts = [['avant', d.voltage_before], ['après', d.voltage_after]].filter(([, v]) => v !== '' && v !== null);
   if (!parts.length) return 'Tension mesurée au repos : la charge est estimée à partir de la série (S) et du type de cellule.';
   if (!(Number(d.config_s) > 0)) return 'Renseignez la série (S) pour estimer la charge.';
-  const out = parts.map(([label, v]) => {
-    const l = chargeLevel(v, d.config_s, d.cell_type);
-    return l ? `${label} ≈ ${l.pct} % (${fmtNum(l.perCell)} V par cellule)` : `${label} : tension incohérente avec ${d.config_s}S`;
-  });
-  return `Charge estimée : ${out.join(', ')}.`;
+  const out = parts
+    .map(([label, v]) => {
+      const l = chargeLevel(v, d.config_s, d.cell_type);
+      if (l) return `${label} ≈ ${l.pct} % (${fmtNum(l.perCell)} V par cellule)`;
+      // Too high is reported as an error above; too low is a real case
+      return Number(v) / Number(d.config_s) < 2 ? `${label} : pack à plat ou BMS en protection` : null;
+    })
+    .filter(Boolean);
+  return out.length ? `Charge estimée : ${out.join(', ')}.` : '';
 });
 
 const isBattery = computed(() => form.category === 'batterie');
@@ -86,9 +90,19 @@ onMounted(async () => {
 });
 
 // 13S → 13 groups by default
-watch(() => form.details.config_s, (s) => {
-  if (s && !form.details.groups_count) form.details.groups_count = s;
+// The group count follows S unless it was set to something else on purpose
+watch(() => form.details.config_s, (s, old) => {
+  const g = form.details.groups_count;
+  if (s && (!g || g === old)) form.details.groups_count = s;
 });
+
+// Impossible values block saving; unusual combinations ask for confirmation
+const NO_ISSUES = { errors: [], warnings: [] };
+const packCheck = computed(() => (isBattery.value ? checkPack(form.details, form.voltage) : NO_ISSUES));
+const issues = (at) => [
+  ...packCheck.value.errors.filter((m) => m.at === at).map((m) => ({ ...m, error: true })),
+  ...packCheck.value.warnings.filter((m) => m.at === at),
+];
 watch(() => form.details.battery_kind, (k) => {
   if (k === 'outil' && form.vehicle_type === 'batterie') form.vehicle_type = 'outil';
 });
@@ -121,6 +135,20 @@ function cleanDetails() {
 
 async function save() {
   if (busy.value) return;
+  const { errors, warnings } = packCheck.value;
+  if (errors.length) {
+    haptic('error');
+    return toastError(new Error(errors[0].text));
+  }
+  if (warnings.length) {
+    const ok = await chooseAction({
+      title: warnings.length > 1 ? `${warnings.length} valeurs inhabituelles` : 'Valeur inhabituelle',
+      message: warnings.map((w) => w.text).join('\n'),
+      actions: [{ label: 'Enregistrer quand même', value: true }],
+      cancel: 'Corriger',
+    });
+    if (ok !== true) return;
+  }
   busy.value = true;
   try {
     const body = { ...form, labor: Number(form.labor) || 0, details: cleanDetails() };
@@ -176,29 +204,43 @@ async function save() {
       <template v-if="isBattery">
         <ListGroup header="Batterie">
           <div class="cell"><Segmented v-model="form.details.battery_kind" :options="BATTERY_KINDS" style="width: 100%" /></div>
-          <label class="cell field"><span class="field-label">Capacité</span><input v-model="form.details.capacity_ah" type="number" step="0.1" inputmode="decimal" placeholder="—" /><span class="unit">Ah</span></label>
-          <label class="cell field"><span class="field-label">Série</span><input v-model.number="form.details.config_s" type="number" min="1" inputmode="numeric" placeholder="—" /><span class="unit">S</span></label>
-          <label class="cell field"><span class="field-label">Parallèle</span><input v-model.number="form.details.config_p" type="number" min="1" inputmode="numeric" placeholder="—" /><span class="unit">P</span></label>
+          <label class="cell field"><span class="field-label">Capacité</span><input v-model="form.details.capacity_ah" type="number" step="0.1" :min="LIMITS.capacity[0]" :max="LIMITS.capacity[1]" inputmode="decimal" placeholder="—" /><span class="unit">Ah</span></label>
+          <label class="cell field"><span class="field-label">Série</span><input v-model.number="form.details.config_s" type="number" step="1" :min="LIMITS.s[0]" :max="LIMITS.s[1]" inputmode="numeric" placeholder="—" /><span class="unit">S</span></label>
+          <label class="cell field"><span class="field-label">Parallèle</span><input v-model.number="form.details.config_p" type="number" step="1" :min="LIMITS.p[0]" :max="LIMITS.p[1]" inputmode="numeric" placeholder="—" /><span class="unit">P</span></label>
           <PickerRow v-model="form.details.cell_type" label="Cellules" :options="CELL_TYPES" />
-          <label class="cell field"><span class="field-label">Groupes</span><input v-model.number="form.details.groups_count" type="number" min="0" max="40" inputmode="numeric" placeholder="—" /></label>
+          <label class="cell field"><span class="field-label">Groupes</span><input v-model.number="form.details.groups_count" type="number" step="1" min="0" :max="form.details.config_s || LIMITS.s[1]" inputmode="numeric" placeholder="—" /></label>
           <label class="cell field"><span class="field-label">BMS</span><input v-model="form.details.bms" placeholder="13S 20A…" /></label>
+          <template v-if="issues('pack').length" #footer>
+            <div v-for="m in issues('pack')" :key="m.text" class="issue" :class="m.error ? 'c-red' : 'c-orange'">{{ m.text }}</div>
+          </template>
         </ListGroup>
-        <ListGroup v-if="Number(form.details.groups_count) > 0" header="Tension de chaque groupe (V)" footer="Mesurez avant l'intervention, puis après. Les groupes qui s'écartent de la médiane sont signalés en couleur.">
+        <ListGroup v-if="Number(form.details.groups_count) > 0" header="Tension de chaque groupe (V)">
           <div class="cell"><Segmented v-model="cellPhase" :options="CELL_PHASES" style="width: 100%" /></div>
           <CellGroups
-            :key="cellPhase" :model-value="form.details[cellPhase]" :count="Math.min(Number(form.details.groups_count), 40)"
+            :key="cellPhase" :model-value="form.details[cellPhase]" :count="Math.min(Number(form.details.groups_count), LIMITS.s[1])"
             :compare="cellPhase === 'groups_after' ? form.details.groups : null"
             @update:model-value="(v) => (form.details[cellPhase] = v)"
           />
+          <template #footer>
+            <div v-for="m in issues('groups')" :key="m.text" class="issue" :class="m.error ? 'c-red' : 'c-orange'">{{ m.text }}</div>
+            Mesurez avant l'intervention, puis après. Les groupes qui s'écartent de la médiane sont signalés en couleur.
+          </template>
         </ListGroup>
-        <ListGroup header="Tests" :footer="chargeHint">
-          <label class="cell field"><span class="field-label">Tension avant</span><input v-model="form.details.voltage_before" type="number" step="0.01" inputmode="decimal" placeholder="—" /><span class="unit">V</span></label>
-          <label class="cell field"><span class="field-label">Tension après</span><input v-model="form.details.voltage_after" type="number" step="0.01" inputmode="decimal" placeholder="—" /><span class="unit">V</span></label>
+        <ListGroup header="Tests">
+          <label class="cell field"><span class="field-label">Tension avant</span><input v-model="form.details.voltage_before" type="number" step="0.01" min="0" inputmode="decimal" placeholder="—" /><span class="unit">V</span></label>
+          <label class="cell field"><span class="field-label">Tension après</span><input v-model="form.details.voltage_after" type="number" step="0.01" min="0" inputmode="decimal" placeholder="—" /><span class="unit">V</span></label>
+          <template #footer>
+            <div v-for="m in issues('tests')" :key="m.text" class="issue" :class="m.error ? 'c-red' : 'c-orange'">{{ m.text }}</div>
+            {{ chargeHint }}
+          </template>
         </ListGroup>
         <ListGroup>
-          <label class="cell field"><span class="field-label">Capacité mesurée</span><input v-model="form.details.capacity_measured" type="number" step="0.01" inputmode="decimal" placeholder="—" /><span class="unit">Ah</span></label>
+          <label class="cell field"><span class="field-label">Capacité mesurée</span><input v-model="form.details.capacity_measured" type="number" step="0.01" min="0" inputmode="decimal" placeholder="—" /><span class="unit">Ah</span></label>
           <label class="cell field"><span class="field-label">Résistance int.</span><input v-model="form.details.internal_resistance" type="number" step="0.1" inputmode="decimal" placeholder="—" /><span class="unit">mΩ</span></label>
           <label class="cell field stacked"><span class="field-label">Résultat des tests</span><textarea v-model="form.details.test_result" placeholder="Conclusions…" /></label>
+          <template v-if="issues('capacity').length" #footer>
+            <div v-for="m in issues('capacity')" :key="m.text" class="issue" :class="m.error ? 'c-red' : 'c-orange'">{{ m.text }}</div>
+          </template>
         </ListGroup>
       </template>
 
