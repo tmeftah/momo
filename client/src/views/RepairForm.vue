@@ -24,7 +24,7 @@ const id = route.params.id;
 const busy = ref(false);
 
 const emptyDetails = () => ({
-  battery_kind: 'vehicule', capacity_ah: '', config_s: '', config_p: '', cell_type: '18650', groups_count: '', groups: [],
+  battery_kind: 'vehicule', capacity_ah: '', config_s: '', config_p: '', cell_type: '18650', groups_count: '', groups: [], groups_after: [],
   bms: '', voltage_before: '', voltage_after: '', capacity_measured: '', internal_resistance: '', test_result: '',
   interventions: [],
   original_system: '', new_system: '', modification: '',
@@ -50,6 +50,10 @@ const addFreeTask = (t) => tasks.value.push(t);
 async function removeTask(i) {
   if (await confirmAction('', { title: `Retirer « ${tasks.value[i].name} » ?`, confirm: 'Retirer la prestation' })) tasks.value.splice(i, 1);
 }
+
+// Per-group voltages: `groups` holds the "before" measurement (older repairs only have that one)
+const CELL_PHASES = [{ value: 'groups', label: 'Avant' }, { value: 'groups_after', label: 'Après' }];
+const cellPhase = ref('groups');
 
 const isBattery = computed(() => form.category === 'batterie');
 const interventionOptions = computed(() => (isBattery.value ? BATTERY_INTERVENTIONS : ELECTRONIC_INTERVENTIONS));
@@ -165,8 +169,13 @@ async function save() {
           <label class="cell field"><span class="field-label">Groupes</span><input v-model.number="form.details.groups_count" type="number" min="0" max="40" inputmode="numeric" placeholder="—" /></label>
           <label class="cell field"><span class="field-label">BMS</span><input v-model="form.details.bms" placeholder="13S 20A…" /></label>
         </ListGroup>
-        <ListGroup v-if="Number(form.details.groups_count) > 0" header="Tension de chaque groupe (V)" footer="Les groupes qui s'écartent de la médiane sont signalés en couleur.">
-          <CellGroups v-model="form.details.groups" :count="Math.min(Number(form.details.groups_count), 40)" />
+        <ListGroup v-if="Number(form.details.groups_count) > 0" header="Tension de chaque groupe (V)" footer="Mesurez avant l'intervention, puis après. Les groupes qui s'écartent de la médiane sont signalés en couleur.">
+          <div class="cell"><Segmented v-model="cellPhase" :options="CELL_PHASES" style="width: 100%" /></div>
+          <CellGroups
+            :key="cellPhase" :model-value="form.details[cellPhase]" :count="Math.min(Number(form.details.groups_count), 40)"
+            :compare="cellPhase === 'groups_after' ? form.details.groups : null"
+            @update:model-value="(v) => (form.details[cellPhase] = v)"
+          />
         </ListGroup>
         <ListGroup header="Tests">
           <label class="cell field"><span class="field-label">Tension avant</span><input v-model="form.details.voltage_before" type="number" step="0.01" inputmode="decimal" placeholder="—" /><span class="unit">V</span></label>

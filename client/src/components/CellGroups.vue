@@ -3,13 +3,20 @@
 import { computed } from 'vue';
 import { fmtNum } from '../store.js';
 
-const props = defineProps({ modelValue: { type: Array, default: () => [] }, count: { type: Number, default: 0 }, readonly: Boolean });
+const props = defineProps({
+  modelValue: { type: Array, default: () => [] },
+  count: { type: Number, default: 0 },
+  readonly: Boolean,
+  compare: { type: Array, default: null }, // "before" values, to show the spread they had
+});
 const emit = defineEmits(['update:modelValue']);
 
-const values = computed(() => Array.from({ length: props.count }, (_, i) => props.modelValue[i] ?? ''));
+const values = computed(() => Array.from({ length: props.count }, (_, i) => props.modelValue?.[i] ?? ''));
 const nums = computed(() => values.value.map(Number).filter((v) => v > 0));
-const stats = computed(() => {
-  const n = nums.value;
+const stats = computed(() => statsOf(nums.value));
+const before = computed(() => (props.compare ? statsOf(props.compare.slice(0, props.count).map(Number).filter((v) => v > 0)) : null));
+
+function statsOf(n) {
   if (!n.length) return null;
   const sorted = [...n].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
@@ -17,7 +24,7 @@ const stats = computed(() => {
   const ref = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
   const sum = n.reduce((a, b) => a + b, 0);
   return { min: sorted[0], max: sorted[sorted.length - 1], ref, sum, spread: Math.round((sorted[sorted.length - 1] - sorted[0]) * 1000) };
-});
+}
 
 function cls(v) {
   const n = Number(v);
@@ -49,5 +56,6 @@ function set(i, v) {
     <span class="pill gray">Max {{ fmtNum(stats.max) }} V</span>
     <span class="pill" :class="stats.spread > 100 ? 'red' : stats.spread > 30 ? 'orange' : 'green'">Écart {{ stats.spread }} mV</span>
     <span class="pill blue">Pack ≈ {{ fmtNum(Math.round(stats.sum * 100) / 100) }} V</span>
+    <span v-if="before" class="pill gray">Avant : écart {{ before.spread }} mV</span>
   </div>
 </template>

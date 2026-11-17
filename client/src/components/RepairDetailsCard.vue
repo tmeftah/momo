@@ -1,15 +1,25 @@
 <script setup>
 // Read-only rendering of the category specific "details" of a repair.
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 import { BATTERY_KINDS } from '../constants.js';
 import ListGroup from './ListGroup.vue';
 import ListRow from './ListRow.vue';
 import CellGroups from './CellGroups.vue';
+import Segmented from './Segmented.vue';
 
 const props = defineProps({ category: String, details: Object });
 const d = computed(() => props.details || {});
 const has = (...keys) => keys.some((k) => d.value[k] !== undefined && d.value[k] !== null && d.value[k] !== '' && !(Array.isArray(d.value[k]) && !d.value[k].length));
 const kind = computed(() => BATTERY_KINDS.find((k) => k.value === d.value.battery_kind)?.label);
+
+// Cell voltages: `groups` = before, `groups_after` = after. Show "after" first when it exists.
+const measured = (k) => Array.isArray(d.value[k]) && d.value[k].some((v) => Number(v) > 0);
+const phases = computed(() => [
+  measured('groups') && { value: 'groups', label: 'Avant' },
+  measured('groups_after') && { value: 'groups_after', label: 'Après' },
+].filter(Boolean));
+const picked = ref(null);
+const phase = computed(() => picked.value || phases.value[phases.value.length - 1]?.value);
 </script>
 
 <template>
@@ -21,8 +31,12 @@ const kind = computed(() => BATTERY_KINDS.find((k) => k.value === d.value.batter
       <ListRow v-if="has('cell_type')" title="Cellules" :value="d.cell_type" />
       <ListRow v-if="has('bms')" title="BMS" :value="d.bms" />
     </ListGroup>
-    <ListGroup v-if="Number(d.groups_count) > 0 && has('groups')" :header="`Mesure des ${d.groups_count} groupes`">
-      <CellGroups :model-value="d.groups" :count="Number(d.groups_count)" readonly />
+    <ListGroup v-if="Number(d.groups_count) > 0 && phases.length" :header="`Mesure des ${d.groups_count} groupes${phases.length === 1 ? ' · ' + phases[0].label.toLowerCase() : ''}`">
+      <div v-if="phases.length > 1" class="cell"><Segmented :model-value="phase" :options="phases" style="width: 100%" @update:model-value="(v) => (picked = v)" /></div>
+      <CellGroups
+        :key="phase" :model-value="d[phase]" :count="Number(d.groups_count)" readonly
+        :compare="phase === 'groups_after' && measured('groups') ? d.groups : null"
+      />
     </ListGroup>
     <ListGroup v-if="has('voltage_before', 'voltage_after', 'capacity_measured', 'internal_resistance', 'test_result')" header="Tests">
       <ListRow v-if="has('voltage_before')" title="Tension avant" :value="`${d.voltage_before} V`" />
