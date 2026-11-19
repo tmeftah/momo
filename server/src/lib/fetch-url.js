@@ -107,7 +107,11 @@ export function fetchUrl(url, { accept = '*/*', maxBytes = 5 * 1024 * 1024, time
             reject(httpError(413, 'Fichier trop lourd'));
           } else chunks.push(c);
         });
-        stream.on('end', () => resolve({ url: u.href, status: res.statusCode, type: String(res.headers['content-type'] || ''), body: Buffer.concat(chunks) }));
+        // Node keeps only the first Content-Type; some caching plugins send two
+        // ("application/octet-stream" then "text/html"), so keep them all.
+        const types = [];
+        for (let i = 0; i < res.rawHeaders.length; i += 2) if (res.rawHeaders[i].toLowerCase() === 'content-type') types.push(res.rawHeaders[i + 1]);
+        stream.on('end', () => resolve({ url: u.href, status: res.statusCode, type: types.join(', '), body: Buffer.concat(chunks) }));
         stream.on('error', reject);
       }
     );
@@ -120,6 +124,12 @@ export function fetchUrl(url, { accept = '*/*', maxBytes = 5 * 1024 * 1024, time
       reject(httpError(422, 'Le site est injoignable'));
     });
   });
+}
+
+/** HTML recognised from its first bytes, for servers that announce the wrong type. */
+export function looksLikeHtml(body) {
+  const start = body.subarray(0, 1024).toString('latin1').replace(/^﻿|^ï»¿/, '').trimStart().toLowerCase();
+  return /^<(!doctype html|html|head|!--)/.test(start) || /<html[\s>]/.test(start);
 }
 
 /** Text with the charset declared by the server or the page (UTF-8 otherwise). */

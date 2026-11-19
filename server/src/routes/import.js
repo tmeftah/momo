@@ -5,7 +5,7 @@ import { db, getSetting } from '../db.js';
 import { config } from '../config.js';
 import { httpError, num } from '../lib/util.js';
 import { storeUploadedPhoto, storePhoto, isAcceptedImage } from '../lib/photos.js';
-import { fetchUrl, decodeText } from '../lib/fetch-url.js';
+import { fetchUrl, decodeText, looksLikeHtml } from '../lib/fetch-url.js';
 
 /**
  * Routes used by the Chrome extension to add products found on webshops to the stock.
@@ -161,7 +161,7 @@ export default async function importRoutes(app, items) {
     if (res.status >= 400) {
       throw httpError(422, res.status === 403 || res.status === 429 || res.status === 503 ? `Le site refuse la lecture depuis le serveur (erreur ${res.status})` : `Le site a répondu par une erreur ${res.status}`);
     }
-    if (!json && !/html|xml/i.test(res.type)) throw httpError(415, 'Ce lien ne mène pas à une page web');
+    if (!json && !/html|xml/i.test(res.type) && !looksLikeHtml(res.body)) throw httpError(415, 'Ce lien ne mène pas à une page web');
     return { url: res.url, body: decodeText(res.body, res.type) };
   });
 

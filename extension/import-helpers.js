@@ -16,6 +16,12 @@ const CATEGORY_HINTS = [
   [/c[âa]ble|cable|faisceau|rallonge/i, 'Câbles'],
   [/batterie|battery|\baccus?\b/i, 'Batteries'],
 ];
+// Only when no text names a specific part ("Moteur" in the name beats "Pièces trottinette")
+const ACCESSORY_HINTS = [
+  [/trottinette|scooter [ée]lectrique pliant|kick ?scooter|\bm365\b|ninebot|xiaomi/i, 'Accessoires trottinette électrique'],
+  [/scooter|cyclomoteur/i, 'Accessoires scooter électrique'],
+  [/v[ée]lo|\bvae\b|e-?bike/i, 'Accessoires vélo électrique'],
+];
 
 const CURRENCY_SYMBOL = { EUR: '€', USD: '$', GBP: '£', TND: 'DT', MAD: 'DH', DZD: 'DA', CHF: 'CHF', CAD: '$' };
 
@@ -28,7 +34,9 @@ export function guessCategory(p, known) {
     const exact = known.find((c) => squash(c) === squash(t));
     if (exact) return exact;
   }
-  for (const t of texts) for (const [re, cat] of CATEGORY_HINTS) if (re.test(t) && known.includes(cat)) return cat;
+  for (const hints of [CATEGORY_HINTS, ACCESSORY_HINTS]) {
+    for (const t of texts) for (const [re, cat] of hints) if (re.test(t) && known.includes(cat)) return cat;
+  }
   return '';
 }
 
