@@ -19,6 +19,8 @@ const phases = computed(() => [
   measured('groups') && { value: 'groups', label: 'Avant' },
   measured('groups_after') && { value: 'groups_after', label: 'Après' },
 ].filter(Boolean));
+// One group per series cell; older repairs stored the count separately
+const groupCount = computed(() => Number(d.value.config_s) || Number(d.value.groups_count) || 0);
 const picked = ref(null);
 const phase = computed(() => picked.value || phases.value[phases.value.length - 1]?.value);
 </script>
@@ -32,10 +34,10 @@ const phase = computed(() => picked.value || phases.value[phases.value.length - 
       <ListRow v-if="has('cell_type')" title="Cellules" :value="d.cell_type" />
       <ListRow v-if="has('bms')" title="BMS" :value="d.bms" />
     </ListGroup>
-    <ListGroup v-if="Number(d.groups_count) > 0 && phases.length" :header="`Mesure des ${d.groups_count} groupes${phases.length === 1 ? ' · ' + phases[0].label.toLowerCase() : ''}`">
+    <ListGroup v-if="groupCount > 0 && phases.length" :header="`Mesure des ${groupCount} groupes${phases.length === 1 ? ' · ' + phases[0].label.toLowerCase() : ''}`">
       <div v-if="phases.length > 1" class="cell"><Segmented :model-value="phase" :options="phases" style="width: 100%" @update:model-value="(v) => (picked = v)" /></div>
       <CellGroups
-        :key="phase" :model-value="d[phase]" :count="Number(d.groups_count)" readonly
+        :key="phase" :model-value="d[phase]" :count="groupCount" readonly
         :compare="phase === 'groups_after' && measured('groups') ? d.groups : null"
       />
     </ListGroup>

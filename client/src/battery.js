@@ -24,8 +24,8 @@ const CELL_AH = { 18650: [1.2, 3.6], 21700: [2.5, 5.5], 26650: [2.5, 5.5] };
 
 // Volts per cell a pack can be labelled with: nominal (3.6–3.7) up to full charge (4.2)
 const LABEL_PER_CELL = { liion: [3.2, 4.25], LiFePO4: [2.9, 3.65] };
-// Single group reading at rest: below this the cell is dead or the value mistyped
-const GROUP_V = { liion: [0.5, 4.3], LiFePO4: [0.5, 3.7] };
+// Highest volts per cell a measured pack can show (full charge plus meter tolerance)
+const MAX_PER_CELL = { liion: 4.3, LiFePO4: 3.7 };
 
 const num = (v) => (v === '' || v === null || v === undefined ? null : Number(String(v).replace(',', '.')));
 const fmt = (n) => String(Math.round(n * 100) / 100).replace('.', ',');
@@ -47,19 +47,12 @@ export function checkPack(d, label = '') {
   const s = num(d.config_s);
   const p = num(d.config_p);
   const cap = num(d.capacity_ah);
-  const groups = num(d.groups_count);
 
   if (s !== null && (!isInt(s) || s < LIMITS.s[0] || s > LIMITS.s[1])) E(`Série : ${LIMITS.s[0]} à ${LIMITS.s[1]}S, nombre entier.`);
   if (p !== null && (!isInt(p) || p < LIMITS.p[0] || p > LIMITS.p[1])) E(`Parallèle : ${LIMITS.p[0]} à ${LIMITS.p[1]}P, nombre entier.`);
   if (cap !== null && (cap < LIMITS.capacity[0] || cap > LIMITS.capacity[1])) E(`Capacité : entre ${fmt(LIMITS.capacity[0])} et ${LIMITS.capacity[1]} Ah.`);
   const sOk = s !== null && !errors.some((e) => e.text.startsWith('Série'));
   const pOk = p !== null && !errors.some((e) => e.text.startsWith('Parallèle'));
-
-  if (groups !== null && groups > 0) {
-    if (!isInt(groups)) E('Groupes : nombre entier.');
-    else if (sOk && groups > s) E(`Groupes : ${groups} groupes pour une batterie ${s}S, il ne peut pas y en avoir plus que la série.`);
-    else if (sOk && groups < s) W(`Seulement ${groups} groupes mesurés sur ${s}.`);
-  }
 
   // Capacity per cell = pack capacity / P, must match the cell format
   const range = CELL_AH[d.cell_type];
@@ -86,17 +79,17 @@ export function checkPack(d, label = '') {
     const v = num(d[key]);
     if (v === null) continue;
     if (v < 0 || v > 200) E(`Tension ${name} : ${fmt(v)} V impossible.`);
-    else if (sOk && v / s > GROUP_V[chem][1]) E(`Tension ${name} : ${fmt(v)} V = ${fmt(v / s)} V par cellule, au-dessus du maximum. Vérifiez la valeur ou la série.`);
+    else if (sOk && v / s > MAX_PER_CELL[chem]) E(`Tension ${name} : ${fmt(v)} V = ${fmt(v / s)} V par cellule, au-dessus du maximum. Vérifiez la valeur ou la série.`);
   }
 
-  // Each group reading
+  // Group readings: any measured value is accepted, but it has to be a number
   at = 'groups';
   for (const [key, name] of [['groups', 'avant'], ['groups_after', 'après']]) {
     const bad = (d[key] || [])
-      .slice(0, groups > 0 ? groups : 0)
+      .slice(0, sOk ? s : 0)
       .map((v, i) => [i + 1, num(v)])
-      .filter(([, v]) => v !== null && v !== 0 && (Number.isNaN(v) || v < GROUP_V[chem][0] || v > GROUP_V[chem][1]));
-    if (bad.length) E(`Groupes ${name} : ${bad.map(([i, v]) => (Number.isNaN(v) ? `G${i} invalide` : `G${i} ${fmt(v)} V`)).join(', ')} hors plage (${fmt(GROUP_V[chem][0])} à ${fmt(GROUP_V[chem][1])} V).`);
+      .filter(([, v]) => Number.isNaN(v));
+    if (bad.length) E(`Groupes ${name} : ${bad.map(([i]) => `G${i}`).join(', ')} ${bad.length > 1 ? 'ne sont pas des nombres' : "n'est pas un nombre"}.`);
   }
 
   at = 'capacity';

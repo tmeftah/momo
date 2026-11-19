@@ -25,7 +25,7 @@ const id = route.params.id;
 const busy = ref(false);
 
 const emptyDetails = () => ({
-  battery_kind: 'vehicule', capacity_ah: '', config_s: '', config_p: '', cell_type: '18650', groups_count: '', groups: [], groups_after: [],
+  battery_kind: 'vehicule', capacity_ah: '', config_s: '', config_p: '', cell_type: '18650', groups: [], groups_after: [],
   bms: '', voltage_before: '', voltage_after: '', capacity_measured: '', internal_resistance: '', test_result: '',
   interventions: [],
   original_system: '', new_system: '', modification: '',
@@ -55,6 +55,11 @@ async function removeTask(i) {
 // Per-group voltages: `groups` holds the "before" measurement (older repairs only have that one)
 const CELL_PHASES = [{ value: 'groups', label: 'Avant' }, { value: 'groups_after', label: 'Après' }];
 const cellPhase = ref('groups');
+// One group per series cell: the grid follows S
+const groupCount = computed(() => {
+  const s = Number(form.details.config_s);
+  return Number.isInteger(s) && s >= LIMITS.s[0] && s <= LIMITS.s[1] ? s : 0;
+});
 
 // Live charge estimate under the pack voltages
 const chargeHint = computed(() => {
@@ -84,16 +89,13 @@ onMounted(async () => {
     const r = await api.get(`/repairs/${id}`);
     for (const k of Object.keys(form)) if (k !== 'details' && r[k] !== undefined && r[k] !== null) form[k] = r[k];
     form.details = { ...emptyDetails(), ...(r.details || {}) };
+    // Older repairs stored a separate group count
+    const { groups_count: g } = form.details;
+    if (g && !form.details.config_s) form.details.config_s = g;
+    delete form.details.groups_count;
   } catch (e) {
     toastError(e);
   }
-});
-
-// 13S → 13 groups by default
-// The group count follows S unless it was set to something else on purpose
-watch(() => form.details.config_s, (s, old) => {
-  const g = form.details.groups_count;
-  if (s && (!g || g === old)) form.details.groups_count = s;
 });
 
 // Impossible values block saving; unusual combinations ask for confirmation
@@ -128,7 +130,8 @@ function cleanDetails() {
   const out = {};
   for (const [k, v] of Object.entries(form.details)) {
     if (v === '' || v === null || (Array.isArray(v) && !v.length)) continue;
-    out[k] = v;
+    // Readings past S are left over from a larger S typed earlier
+    out[k] = (k === 'groups' || k === 'groups_after') && groupCount.value ? v.slice(0, groupCount.value) : v;
   }
   return Object.keys(out).length ? out : null;
 }
@@ -208,16 +211,15 @@ async function save() {
           <label class="cell field"><span class="field-label">Série</span><input v-model.number="form.details.config_s" type="number" step="1" :min="LIMITS.s[0]" :max="LIMITS.s[1]" inputmode="numeric" placeholder="—" /><span class="unit">S</span></label>
           <label class="cell field"><span class="field-label">Parallèle</span><input v-model.number="form.details.config_p" type="number" step="1" :min="LIMITS.p[0]" :max="LIMITS.p[1]" inputmode="numeric" placeholder="—" /><span class="unit">P</span></label>
           <PickerRow v-model="form.details.cell_type" label="Cellules" :options="CELL_TYPES" />
-          <label class="cell field"><span class="field-label">Groupes</span><input v-model.number="form.details.groups_count" type="number" step="1" min="0" :max="form.details.config_s || LIMITS.s[1]" inputmode="numeric" placeholder="—" /></label>
           <label class="cell field"><span class="field-label">BMS</span><input v-model="form.details.bms" placeholder="13S 20A…" /></label>
           <template v-if="issues('pack').length" #footer>
             <div v-for="m in issues('pack')" :key="m.text" class="issue" :class="m.error ? 'c-red' : 'c-orange'">{{ m.text }}</div>
           </template>
         </ListGroup>
-        <ListGroup v-if="Number(form.details.groups_count) > 0" header="Tension de chaque groupe (V)">
+        <ListGroup v-if="groupCount" header="Tension de chaque groupe (V)">
           <div class="cell"><Segmented v-model="cellPhase" :options="CELL_PHASES" style="width: 100%" /></div>
           <CellGroups
-            :key="cellPhase" :model-value="form.details[cellPhase]" :count="Math.min(Number(form.details.groups_count), LIMITS.s[1])"
+            :key="cellPhase" :model-value="form.details[cellPhase]" :count="groupCount"
             :compare="cellPhase === 'groups_after' ? form.details.groups : null"
             @update:model-value="(v) => (form.details[cellPhase] = v)"
           />
