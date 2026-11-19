@@ -37,6 +37,8 @@ export default defineConfig({
     port: 5173,
     host: true,
     proxy: { '/api': 'http://localhost:3000' },
+    // The phone import screen uses the Chrome extension's extractor (../extension)
+    fs: { allow: ['.', '../extension'] },
   },
   build: { outDir: 'dist', emptyOutDir: true },
 });

@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch, onActivated } from 'vue';
 import { useRoute } from 'vue-router';
-import { Plus, PackagePlus, Package } from 'lucide-vue-next';
+import { Plus, PackagePlus, Package, Globe } from 'lucide-vue-next';
 import { api } from '../api.js';
 import { STOCK_CATEGORIES } from '../constants.js';
 import { money, fmtNum } from '../store.js';
@@ -57,6 +57,7 @@ const qtyColor = (i) => (i.quantity <= 0 ? 'red' : i.low ? 'orange' : 'gray');
 <template>
   <div class="page">
     <NavBar title="Stock" large :refresh="load">
+      <router-link to="/stock/importer" class="nav-icon" aria-label="Importer depuis un site"><Globe :size="18" :stroke-width="2.2" /></router-link>
       <router-link to="/stock/ajout" class="nav-icon" aria-label="Entrée de stock"><PackagePlus :size="18" :stroke-width="2.2" /></router-link>
       <router-link to="/stock/nouveau" class="nav-icon filled" aria-label="Nouvel article"><Plus :size="20" :stroke-width="2.6" /></router-link>
     </NavBar>

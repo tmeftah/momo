@@ -24,6 +24,7 @@ const routes = [
   { path: '/stock', component: v('StockList'), meta: { tab: 'stock', root: true, title: 'Stock' } },
   { path: '/stock/nouveau', component: v('ItemForm'), meta: { tab: 'stock', title: 'Nouvel article' } },
   { path: '/stock/ajout', component: v('StockAdd'), meta: { tab: 'stock', title: 'Entrée' } },
+  { path: '/stock/importer', component: v('ProductImport'), meta: { tab: 'stock', title: 'Importer' } },
   { path: '/stock/:id', component: v('ItemDetail'), meta: { tab: 'stock', title: 'Article' } },
   { path: '/stock/:id/modifier', component: v('ItemForm'), meta: { tab: 'stock', title: 'Modifier' } },
 

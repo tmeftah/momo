@@ -11,13 +11,19 @@
  *   microdata schema.org microdata
  *   meta      Open Graph / product meta tags
  *   dom       reading the page itself (title, visible price, gallery, "Réf. :" labels…)
+ *
+ * page (optional, used by the app on phones): { html, url, fetchText(url) } reads HTML fetched
+ * by the server instead of the open tab. There is no layout then, so visibility and picture
+ * sizes come from attributes, and fetchText replaces same-site requests (Shopify data).
  */
-export async function extractProduct(siteRules = {}) {
+export async function extractProduct(siteRules = {}, page = null) {
   const MAX_IMAGES = 15;
   const MAX_DESCRIPTION = 10000;
-  const doc = document;
+  const live = !page;
+  const doc = live ? document : new DOMParser().parseFromString(page.html, 'text/html');
+  const loc = live ? location : new URL(page.url);
   const lang = (doc.documentElement.lang || navigator.language || '').toLowerCase();
-  const variantId = new URLSearchParams(location.search).get('variant');
+  const variantId = new URLSearchParams(loc.search).get('variant');
 
   // ---------- small helpers ----------
   const $ = (sel, root = doc) => {
@@ -45,7 +51,22 @@ export async function extractProduct(siteRules = {}) {
     }
     return null;
   };
-  const visible = (el) => !!el && (el.tagName === 'META' || el.getClientRects().length > 0);
+  const visible = (el) => !!el && (!live || el.tagName === 'META' || el.getClientRects().length > 0);
+  /** Rendered size on a live page; width/height attributes otherwise (0 when unknown). */
+  const sizeOf = (img) => {
+    if (live) {
+      const r = img.getBoundingClientRect();
+      return { w: Math.max(r.width, img.naturalWidth || 0), h: Math.max(r.height, img.naturalHeight || 0) };
+    }
+    return { w: parseInt(img.getAttribute('width'), 10) || 0, h: parseInt(img.getAttribute('height'), 10) || 0 };
+  };
+  const getJson = async (url) => {
+    if (live) {
+      const res = await fetch(url, { credentials: 'include', headers: { Accept: 'application/json' } });
+      return res.ok ? res.json() : null;
+    }
+    return page.fetchText ? JSON.parse(await page.fetchText(url)) : null;
+  };
   const metaContent = (...names) => {
     for (const n of names) {
       const c = clean($(`meta[property="${n}"], meta[name="${n}"]`)?.getAttribute('content'));
@@ -58,7 +79,7 @@ export async function extractProduct(siteRules = {}) {
     u = u.trim();
     if (!u || u.startsWith('data:') || u.startsWith('blob:')) return null;
     try {
-      const x = new URL(u, location.href);
+      const x = new URL(u, loc.href);
       return x.protocol === 'http:' || x.protocol === 'https:' ? x.href : null;
     } catch {
       return null;
@@ -74,14 +95,14 @@ export async function extractProduct(siteRules = {}) {
   };
 
   /** HTML (or text with entities) to readable plain text with line breaks. DOMParser never runs scripts. */
-  const htmlToText = (html, depth = 0) => {
+  const htmlToText = (html, depth = 0, cellSeparator = ' ') => {
     if (!html) return '';
     const d = new DOMParser().parseFromString(String(html), 'text/html');
     d.querySelectorAll('script, style, noscript, template, iframe').forEach((e) => e.remove());
     d.querySelectorAll('br').forEach((b) => b.replaceWith('\n'));
     d.querySelectorAll('li').forEach((li) => li.prepend('- '));
     d.querySelectorAll('p, div, li, tr, h1, h2, h3, h4, h5, h6, ul, ol, table').forEach((b) => b.append('\n'));
-    d.querySelectorAll('td, th').forEach((c) => c.append(' '));
+    d.querySelectorAll('td, th').forEach((c) => c.append(cellSeparator));
     const out = (d.body?.textContent || '')
       .replace(/[ \t  ]+/g, ' ')
       .replace(/ *\n */g, '\n')
@@ -262,7 +283,7 @@ export async function extractProduct(siteRules = {}) {
 
   // ---------- source: site rules ----------
   function fromRules() {
-    const host = location.hostname.replace(/^www\./, '');
+    const host = loc.hostname.replace(/^www\./, '');
     const key = Object.keys(siteRules || {}).find((k) => host === k.replace(/^www\./, '') || host.endsWith('.' + k.replace(/^www\./, '')));
     const r = key ? siteRules[key] : null;
     if (!r) return {};
@@ -293,13 +314,12 @@ export async function extractProduct(siteRules = {}) {
 
   // ---------- source: shop platforms ----------
   async function fromShopify() {
-    const m = location.pathname.match(/^(.*?\/products\/[^/?#]+)/);
+    const m = loc.pathname.match(/^(.*?\/products\/[^/?#]+)/);
     const isShopify = $('meta[name="shopify-digital-wallet"], meta[name="shopify-checkout-api-token"], link[href*="cdn.shopify.com"], script[src*="cdn.shopify.com"], link[href*="/cdn/shop/"]');
     if (!m || !isShopify) return {};
     try {
-      const res = await fetch(`${m[1]}.js`, { credentials: 'include', headers: { Accept: 'application/json' } });
-      if (!res.ok) return {};
-      const p = await res.json();
+      const p = await getJson(new URL(`${m[1]}.js`, loc.href).href);
+      if (!p) return {};
       const variants = p.variants || [];
       const v = variants.find((x) => String(x.id) === variantId) || variants.find((x) => x.available) || variants[0] || {};
       const multi = variants.length > 1 && v.title && v.title !== 'Default Title';
@@ -443,7 +463,7 @@ export async function extractProduct(siteRules = {}) {
         if (p.offers || p.hasVariant) s += 2;
         if (h1 && name && (name === h1 || h1.includes(name) || name.includes(h1))) s += 3;
         try {
-          if (p.url && new URL(p.url, location.href).pathname === location.pathname) s += 2;
+          if (p.url && new URL(p.url, loc.href).pathname === loc.pathname) s += 2;
         } catch {
           /* ignore */
         }
@@ -540,7 +560,8 @@ export async function extractProduct(siteRules = {}) {
       let e = h1;
       for (let i = 0; i < 10 && e.parentElement && e.parentElement !== doc.body; i++) {
         e = e.parentElement;
-        if ([...e.querySelectorAll('img')].some((img) => img.getBoundingClientRect().width >= 200)) {
+        // Without layout, a picture with no declared size counts too
+        if ([...e.querySelectorAll('img')].some((img) => sizeOf(img).w >= 200 || (!live && !sizeOf(img).w && !isNoise(img)))) {
           scope = e;
           break;
         }
@@ -570,15 +591,18 @@ export async function extractProduct(siteRules = {}) {
     // Images: product gallery first, otherwise the largest pictures near the title
     const GALLERY = ['[data-zoom-image]', '[data-large-image]', '[data-large_image]', '[data-image-large-src]', '[class*="gallery" i] img', '[class*="product-image" i] img', '[class*="product__media" i] img', '[class*="productImage" i] img', '[class*="product-photo" i] img', '[class*="zoom" i] img', '[class*="thumbnail" i] img', '[class*="carousel" i] img', '[class*="slider" i] img', '[class*="swiper" i] img'];
     const fromGallery = [];
-    for (const sel of GALLERY) for (const el of $$(sel, scope)) if (!isNoise(el)) fromGallery.push(imageUrlOf(el));
+    for (const root of [...new Set([scope, doc.body])]) {
+      for (const sel of GALLERY) for (const el of $$(sel, root)) if (!isNoise(el)) fromGallery.push(imageUrlOf(el));
+      if (fromGallery.filter(Boolean).length) break;
+    }
     r.images = fromGallery;
     if (!fromGallery.filter(Boolean).length) {
       r.images = [...new Set([scope, doc.body])]
         .flatMap((root) => $$('img', root))
         .filter((img) => !isNoise(img))
-        .map((img) => ({ img, rect: img.getBoundingClientRect() }))
-        .filter(({ img, rect }) => Math.max(rect.width, img.naturalWidth || 0) >= 250 && Math.max(rect.height, img.naturalHeight || 0) >= 200)
-        .sort((a, b) => b.rect.width * b.rect.height - a.rect.width * a.rect.height)
+        .map((img) => ({ img, size: sizeOf(img) }))
+        .filter(({ size }) => (size.w >= 250 && size.h >= 200) || (!live && !size.w))
+        .sort((a, b) => b.size.w * b.size.h - a.size.w * a.size.h)
         .slice(0, 6)
         .map(({ img }) => imageUrlOf(img));
     }
@@ -602,11 +626,12 @@ export async function extractProduct(siteRules = {}) {
     }
 
     // "Réf. : CH-42", "EAN : 376…", "Marque : Bafang", also in two-column spec tables
-    const text = (scope.innerText || '').slice(0, 60000) + '\n' + (scope === doc.body ? '' : (doc.body.innerText || '').slice(0, 60000));
-    const grab = (re) => clean(text.match(re)?.[1]);
+    const textOf = (el) => (live ? el.innerText || '' : htmlToText(el.innerHTML, 1, ' : ')).slice(0, 60000);
+    const text = textOf(scope) + '\n' + (scope === doc.body ? '' : textOf(doc.body));
+    const grab = (re) => clean(text.match(re)?.[1]).replace(/[\s:]+$/, '');
     r.ean = gtin(grab(/\b(?:EAN(?:[- ]?13)?|GTIN(?:[- ]?1[234])?|UPC|Code[- ]barres?|Barcode)\s*[.:#]?\s*(\d[\d ]{6,16}\d)/i), true);
-    r.sku = grab(/(?:^|[\s(])(?:SKU|R[ée]f(?:[ée]rence)?(?: (?:produit|article|fabricant))?|Art(?:ikel)?[.-]?\s?(?:Nr|No)|Item (?:No|#)|Product code|Code (?:produit|article)|MPN)\s*(?:[.:#]\s*|\t|\s+)((?=[A-Z0-9\-_./]*\d)[A-Z0-9][A-Z0-9\-_./]{1,39})/i);
-    r.brand = grab(/(?:^|\n)\s*(?:Marque|Brand|Fabricant|Manufacturer|Hersteller|Marca)\s*(?::|\t)\s*([^\n\t]{2,40})/i);
+    r.sku = grab(/(?:^|[\s(])(?:SKU|R[ée]f(?:[ée]rence)?(?: (?:produit|article|fabricant))?|Art(?:ikel)?[.-]?\s?(?:Nr|No)|Item (?:No|#)|Product code|Code (?:produit|article)|MPN)(?:\s*[.:#\t]\s*|\s+)+((?=[A-Z0-9\-_./]*\d)[A-Z0-9][A-Z0-9\-_./]{1,39})/i);
+    r.brand = grab(/(?:^|\n)\s*(?:Marque|Brand|Fabricant|Manufacturer|Hersteller|Marca)\s*(?:[:\t]\s*)+([^\n\t]{2,40})/i);
 
     const availEl = firstOf(['[itemprop="availability"]', '#availability', '.availability', '.product-availability', '.stock', '[class*="availability" i]', '[class*="stock-status" i]', '[class*="in-stock" i]', '[class*="out-of-stock" i]', '[data-stock]'], scope);
     if (availEl && !isNoise(availEl)) {
@@ -674,13 +699,13 @@ export async function extractProduct(siteRules = {}) {
 
   const availability = take('availability');
   const canonical = absUrl($('link[rel="canonical"]')?.getAttribute('href'));
-  const here = new URL(location.href);
+  const here = new URL(loc.href);
   here.hash = '';
-  const url = canonical && new URL(canonical).hostname === location.hostname && !variantId ? canonical : here.href;
+  const url = canonical && new URL(canonical).hostname === loc.hostname && !variantId ? canonical : here.href;
 
   return {
     url,
-    site: location.hostname.replace(/^www\./, ''),
+    site: loc.hostname.replace(/^www\./, ''),
     platform: platform.platform || '',
     name,
     price,

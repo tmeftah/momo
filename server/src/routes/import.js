@@ -4,7 +4,8 @@ import { ZipArchive } from 'archiver';
 import { db, getSetting } from '../db.js';
 import { config } from '../config.js';
 import { httpError, num } from '../lib/util.js';
-import { storeUploadedPhoto } from '../lib/photos.js';
+import { storeUploadedPhoto, storePhoto, isAcceptedImage } from '../lib/photos.js';
+import { fetchUrl, decodeText } from '../lib/fetch-url.js';
 
 /**
  * Routes used by the Chrome extension to add products found on webshops to the stock.
@@ -147,6 +148,30 @@ export default async function importRoutes(app, items) {
       if (incoming[k] && (existing[k] === null || existing[k] === '')) data[k] = incoming[k];
     }
     return items.update(id, data);
+  });
+
+  // Phone import: the app can't read other sites from the browser, so the server fetches the
+  // page (and Shopify's product data) and the app runs the extension's extractor on it.
+  app.post('/import/page', async (req) => {
+    const json = req.body?.kind === 'json';
+    const res = await fetchUrl(String(req.body?.url || ''), {
+      accept: json ? 'application/json, text/javascript, */*;q=0.1' : 'text/html,application/xhtml+xml,*/*;q=0.8',
+      maxBytes: 6 * 1024 * 1024,
+    });
+    if (res.status >= 400) {
+      throw httpError(422, res.status === 403 || res.status === 429 || res.status === 503 ? `Le site refuse la lecture depuis le serveur (erreur ${res.status})` : `Le site a répondu par une erreur ${res.status}`);
+    }
+    if (!json && !/html|xml/i.test(res.type)) throw httpError(415, 'Ce lien ne mène pas à une page web');
+    return { url: res.url, body: decodeText(res.body, res.type) };
+  });
+
+  app.post('/import/items/:id/photos-from-url', async (req) => {
+    const id = Number(req.params.id);
+    if (!db().prepare('SELECT 1 FROM items WHERE id = ?').get(id)) throw httpError(404, 'Article introuvable');
+    const res = await fetchUrl(String(req.body?.url || ''), { accept: 'image/avif,image/webp,image/png,image/jpeg,image/*;q=0.8', maxBytes: config.maxUploadMb * 1024 * 1024 });
+    if (res.status >= 400) throw httpError(422, `Photo indisponible (erreur ${res.status})`);
+    if (!isAcceptedImage(res.body)) throw httpError(415, 'Format non supporté (JPEG, PNG, WebP ou GIF)');
+    return storePhoto(res.body, 'item', id, req.log);
   });
 
   app.post('/import/items/:id/photos', async (req) => {

@@ -1,24 +1,11 @@
 import { extractProduct } from './extractor.js';
 import { SITE_RULES } from './site-rules.js';
+import { guessCategory, guessSupplier, currencyWarning } from './import-helpers.js';
 
 // Same list as client/src/constants.js (STOCK_CATEGORIES)
 const STOCK_CATEGORIES = [
   'Chargeurs', 'Batteries', 'BMS', 'Cellules 18650', 'Cellules 21700', 'Contrôleurs', 'Écrans', 'Moteurs', 'Capteurs Hall', 'Câbles', 'Connecteurs',
   'Accessoires vélo électrique', 'Accessoires trottinette électrique', 'Accessoires scooter électrique', 'Consommables d’atelier',
-];
-// Checked in this order against the shop's category, then the product name
-const CATEGORY_HINTS = [
-  [/\bbms\b|carte de protection/i, 'BMS'],
-  [/18650/, 'Cellules 18650'],
-  [/21700/, 'Cellules 21700'],
-  [/chargeur|charger|ladegerät/i, 'Chargeurs'],
-  [/contr[ôo]leur|controller/i, 'Contrôleurs'],
-  [/[ée]cran|display|afficheur|\blcd\b/i, 'Écrans'],
-  [/capteurs? (à )?effet hall|hall sensor|capteurs? hall/i, 'Capteurs Hall'],
-  [/moteur|motor/i, 'Moteurs'],
-  [/connecteur|connector|\bxt ?(30|60|90)\b|anderson|\bgx ?16\b/i, 'Connecteurs'],
-  [/c[âa]ble|cable|faisceau|rallonge/i, 'Câbles'],
-  [/batterie|battery|\baccus?\b/i, 'Batteries'],
 ];
 const AVAILABILITY = {
   in_stock: 'En stock',
@@ -28,7 +15,6 @@ const AVAILABILITY = {
   backorder: 'Sur commande',
   discontinued: 'Plus fabriqué',
 };
-const CURRENCY_SYMBOL = { EUR: '€', USD: '$', GBP: '£', TND: 'DT', MAD: 'DH', DZD: 'DA', CHF: 'CHF', CAD: '$' };
 const SOURCE_LABEL = { rules: 'règles du site', ld: 'données schema.org (JSON-LD)', microdata: 'microdonnées schema.org', meta: 'balises Open Graph', dom: 'lecture de la page' };
 const MAX_UPLOAD = 15 * 1024 * 1024;
 const DEFAULT_SELECTED = 8;
@@ -57,7 +43,6 @@ const hostOf = (url) => {
     return '';
   }
 };
-const squash = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '');
 
 function show(view) {
   for (const v of ['settings', 'start', 'product', 'done']) el(`view-${v}`).hidden = v !== view;
@@ -106,7 +91,7 @@ async function api(path, { method = 'GET', body, form } = {}) {
     throw new Error('Serveur injoignable. Vérifiez l’adresse et la connexion.');
   }
   const data = res.headers.get('content-type')?.includes('application/json') ? await res.json().catch(() => null) : null;
-  if (res.status === 401) throw new Error('Clé refusée. Créez une nouvelle clé dans VAE Manager : Réglages › Extension Chrome.');
+  if (res.status === 401) throw new Error('Clé refusée. Créez une nouvelle clé dans VAE Manager : Réglages › Import de produits.');
   if (!res.ok) throw new Error(data?.error || `Erreur ${res.status}`);
   return data;
 }
@@ -242,24 +227,6 @@ async function extract() {
   } finally {
     busy(button, null);
   }
-}
-
-function guessCategory(p, known) {
-  const texts = [p.category, ...(p.breadcrumbs || []).slice().reverse(), p.name].filter(Boolean);
-  for (const t of texts) {
-    const exact = known.find((c) => squash(c) === squash(t));
-    if (exact) return exact;
-  }
-  for (const t of texts) for (const [re, cat] of CATEGORY_HINTS) if (re.test(t)) return cat;
-  return '';
-}
-
-function guessSupplier(site, suppliers) {
-  const host = squash(site.split('.').slice(0, -1).join('.') || site);
-  return suppliers.find((s) => {
-    const n = squash(s.name);
-    return n.length >= 3 && (host.includes(n) || n.includes(host));
-  })?.id;
 }
 
 function fillForm(p, prefs) {
@@ -426,10 +393,8 @@ function renderPrice() {
   const p = state.product;
   const notes = [];
   if (p.price === null) notes.push('Prix non trouvé sur la page.');
-  const symbol = CURRENCY_SYMBOL[p.currency] || p.currency;
-  if (p.currency && unit && squash(symbol) !== squash(unit) && squash(p.currency) !== squash(unit)) {
-    notes.push(`Prix affiché en ${p.currency} sur le site, le stock est en ${unit} : convertissez le montant si besoin.`);
-  }
+  const warning = currencyWarning(p.currency, unit);
+  if (warning) notes.push(warning);
   if (state.target) notes.push('Laissez un prix vide pour ne pas le modifier.');
   el('price-footer').textContent = notes.join(' ');
 }

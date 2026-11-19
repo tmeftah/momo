@@ -1,7 +1,7 @@
 <script setup>
 import { reactive, ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { KeyRound, Lock, TimerReset, Download, FileText, ArchiveRestore, Database, Moon, Smartphone, Sparkles, Puzzle, Copy, FolderDown, ListOrdered } from 'lucide-vue-next';
+import { KeyRound, Lock, TimerReset, Download, FileText, ArchiveRestore, Database, Moon, Smartphone, Sparkles, Puzzle, Copy, FolderDown, ListOrdered, Globe } from 'lucide-vue-next';
 import { pwa, canInstall, openInstall, applyUpdate } from '../pwa.js';
 import { api, session } from '../api.js';
 import { settings, fmtDate } from '../store.js';
@@ -128,6 +128,8 @@ async function revokeKey() {
 }
 
 const extension = reactive({ available: false, version: null });
+// Phones and tablets can't run browser extensions: offer the share-based import there
+const touch = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
 const installSheet = ref(false);
 const INSTALL_STEPS = [
   'Téléchargez l’extension, puis décompressez le fichier .zip.',
@@ -197,17 +199,18 @@ const kb = (b) => (b > 1048576 ? `${(b / 1048576).toFixed(1)} Mo` : `${Math.roun
       <ListRow :icon="Lock" tile="accent" title="Verrouiller maintenant" @click="lock" />
     </ListGroup>
 
-    <ListGroup header="Extension Chrome" footer="L'extension ajoute au stock les produits trouvés sur les sites des fournisseurs. Sa clé ne donne accès qu'à l'ajout d'articles.">
-      <template v-if="extension.available">
+    <ListGroup header="Import de produits" :footer="touch ? 'Sur la page d’un produit, touchez Partager puis VAE Manager. Sur iPhone, copiez le lien et collez-le dans Stock › Importer.' : 'Sur ordinateur, l’extension Chrome ajoute au stock le produit affiché sur le site d’un fournisseur. Sa clé ne donne accès qu’à l’ajout d’articles.'">
+      <ListRow to="/stock/importer" :icon="Globe" tile="accent" title="Importer depuis un site" :subtitle="touch ? 'Depuis ce téléphone' : 'Coller le lien d’un produit'" />
+      <template v-if="extension.available && !touch">
         <ListRow href="/api/extension/download.zip" :icon="FolderDown" tile="accent" title="Télécharger l'extension" :subtitle="`Version ${extension.version} · Chrome, Edge, Brave`" download />
         <ListRow :icon="ListOrdered" tile="accent" title="Installer l'extension" chevron @click="installSheet = true" />
       </template>
       <template v-if="apiKey.active">
         <ListRow :icon="Puzzle" tile="accent" title="Clé de l'extension" :value="`Créée le ${fmtDate(apiKey.created_at)}`" />
-        <ListRow :icon="KeyRound" tile="accent" title="Générer une nouvelle clé" subtitle="L'ancienne clé cesse de fonctionner" @click="createKey" />
+        <ListRow v-if="!touch" :icon="KeyRound" tile="accent" title="Générer une nouvelle clé" subtitle="L'ancienne clé cesse de fonctionner" @click="createKey" />
         <ListRow title="Révoquer la clé" destructive @click="revokeKey" />
       </template>
-      <ListRow v-else :icon="Puzzle" tile="accent" title="Connecter l'extension" subtitle="Crée une clé à coller dans l'extension" chevron @click="createKey" />
+      <ListRow v-else-if="!touch" :icon="Puzzle" tile="accent" title="Connecter l'extension" subtitle="Crée une clé à coller dans l'extension" chevron @click="createKey" />
     </ListGroup>
 
     <ListGroup header="Sauvegarde" footer="Téléchargez régulièrement une sauvegarde complète et gardez-la hors du serveur.">

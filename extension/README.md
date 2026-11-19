@@ -2,9 +2,11 @@
 
 Adds the product shown on a supplier's webshop to the VAE Manager stock.
 
+`extractor.js`, `site-rules.js` and `import-helpers.js` are also used by the app's phone import screen (`client/src/views/ProductImport.vue`), so a change here applies to both. The Docker build copies them for the client build.
+
 ## Install
 
-1. In VAE Manager: **Plus › Réglages › Extension Chrome › Télécharger l'extension**, then unzip the file. (Working from the repository, you can also use this `extension/` folder directly.)
+1. In VAE Manager: **Plus › Réglages › Import de produits › Télécharger l'extension**, then unzip the file. (Working from the repository, you can also use this `extension/` folder directly.)
 2. In Chrome: open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and choose the unzipped folder. Pin the extension to the toolbar.
 3. In Réglages, **Connecter l'extension** creates the key (shown only once; generate a new one if you lose it). Click the extension icon, paste the key, then **Enregistrer et tester**. The server address is already filled in when the extension was downloaded from Réglages: the server adds it as `defaults.json` in the ZIP.
 
@@ -58,4 +60,4 @@ Then reload the extension.
 - **scripting**, **activeTab**: to run the extractor in the current tab when you click **Extraire le produit**. Nothing runs on pages until you click.
 - **storage**: server address, key, and per-shop choices, stored locally in Chrome.
 
-The key only gives access to `/api/import/*` (add or update items and their photos, list categories and suppliers). Revoke it in **Réglages › Extension Chrome**.
+The key only gives access to `/api/import/*` (add or update items and their photos, list categories and suppliers). Revoke it in **Réglages › Import de produits**.

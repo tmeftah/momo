@@ -14,6 +14,8 @@ RUN --mount=type=cache,target=/root/.npm \
     npm ci --prefer-offline --no-audit --no-fund \
  && node -e "require('rolldown')"
 COPY client/ ./
+# The phone import screen imports the extension's product extractor
+COPY extension/extractor.js extension/site-rules.js extension/import-helpers.js ../extension/
 RUN npm run build
 
 # ---------- 2. Server production dependencies ----------

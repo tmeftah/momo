@@ -129,7 +129,7 @@ Requirements:
 `extension/` is a Chrome extension that adds the product shown on a supplier's webshop to the stock: name, price, photos, reference (SKU), EAN, brand, category, the shop's availability and the product link. It opens a review form before anything is sent, finds items already in stock (same link, EAN or reference) and offers to update them instead.
 
 Install and connect it once (on a computer):
-1. In the app: **Plus › Réglages › Extension Chrome › Télécharger l'extension**, then unzip the file. The server builds the ZIP from `extension/` and writes its own address into it (`defaults.json`).
+1. In the app: **Plus › Réglages › Import de produits › Télécharger l'extension**, then unzip the file. The server builds the ZIP from `extension/` and writes its own address into it (`defaults.json`).
 2. In Chrome: `chrome://extensions` → enable **Developer mode** → **Load unpacked** → choose the unzipped folder. Pin it to the toolbar. (**Installer l'extension** in Réglages shows these steps.)
 3. In Réglages, **Connecter l'extension** creates the key (shown once). Click the extension, paste the key (the address is already filled in), then **Enregistrer et tester**.
 
@@ -138,6 +138,14 @@ To update it, download it again, replace the folder's contents and click the rel
 Then on any product page: click the extension → **Extraire le produit** → check the fields → **Ajouter au stock**.
 
 See `extension/README.md` for how extraction works and how to add selectors for a shop it reads badly.
+
+### On the phone
+
+Phones can't run browser extensions, so the app has its own import screen, **Stock › Importer** (globe button), using the same extractor and review form:
+- **Android:** with the app installed on the home screen, open the product page, tap **Partager** and choose **VAE Manager** (the app registers as a share target in `manifest.webmanifest`).
+- **iPhone:** web apps can't receive shares; copy the link of the product page, then **Coller le lien** in Stock › Importer.
+
+Here the server downloads the page and the photos (`/api/import/page`, `/api/import/items/:id/photos-from-url`), reaching public addresses only (`server/src/lib/fetch-url.js`). Some shops refuse requests that don't come from a browser; the screen then says so, and the extension on a computer still works for them.
 
 ## Layout
 
@@ -151,7 +159,7 @@ server/src/
   routes/           core (clients, items, suppliers, purchases), workshop (repairs, diagnostics),
                     sales (sales, payments, dashboard, cash, planning), library (connectors, adaptations,
                     knowledge base), files (photos), system (settings, backup/restore),
-                    import (Chrome extension: the only routes its API key can reach)
+                    import (Chrome extension and phone import: the only routes the extension key can reach)
 client/src/
   views/            one file per screen
   components/       pickers, lines editor, payments panel, photo gallery, cell-group grid…
