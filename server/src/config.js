@@ -14,6 +14,8 @@ export const config = {
   backupsDir: path.join(dataDir, 'backups'),
   tmpDir: path.join(dataDir, 'tmp'),
   publicDir: path.resolve(process.env.PUBLIC_DIR || path.join(here, '..', 'public')),
+  // Chrome extension source, offered as a download in Réglages
+  extensionDir: path.resolve(process.env.EXTENSION_DIR || path.join(here, '..', '..', 'extension')),
   initialPin: process.env.INITIAL_PIN || '',
   sessionDays: Number(process.env.SESSION_DAYS) || 30,
   maxUploadMb: Number(process.env.MAX_UPLOAD_MB) || 15,

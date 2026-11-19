@@ -4,8 +4,9 @@ import { config } from './config.js';
 const NOW = "(datetime('now','localtime'))";
 
 /**
- * Ordered migrations. Never edit an existing entry once released:
- * append a new one instead. PRAGMA user_version tracks progress.
+ * Ordered migrations: SQL text, or a function(database) for steps that must inspect the schema.
+ * Never edit an existing entry once released: append a new one instead.
+ * PRAGMA user_version tracks progress.
  */
 const MIGRATIONS = [
   `
@@ -193,6 +194,29 @@ const MIGRATIONS = [
   CREATE INDEX idx_repair_tasks_repair ON repair_tasks(repair_id);
   CREATE INDEX idx_repair_tasks_task ON repair_tasks(task_id);
   `,
+  // Product details imported from webshops by the Chrome extension.
+  // source_availability is the shop's stock status at the last import, not ours.
+  `
+  ALTER TABLE items ADD COLUMN brand TEXT;
+  ALTER TABLE items ADD COLUMN ean TEXT;
+  ALTER TABLE items ADD COLUMN description TEXT;
+  ALTER TABLE items ADD COLUMN source_url TEXT;
+  ALTER TABLE items ADD COLUMN source_availability TEXT;
+  CREATE INDEX idx_items_ean ON items(ean);
+  CREATE INDEX idx_items_source_url ON items(source_url);
+  `,
+  // Repairs databases where an earlier draft of the previous migration ran under the same
+  // version number (some columns and the indexes missing). No-op everywhere else.
+  (database) => {
+    const have = new Set(database.prepare('PRAGMA table_info(items)').all().map((c) => c.name));
+    for (const col of ['brand', 'ean', 'description', 'source_url', 'source_availability']) {
+      if (!have.has(col)) database.exec(`ALTER TABLE items ADD COLUMN ${col} TEXT`);
+    }
+    database.exec(`
+      CREATE INDEX IF NOT EXISTS idx_items_ean ON items(ean);
+      CREATE INDEX IF NOT EXISTS idx_items_source_url ON items(source_url);
+    `);
+  },
 ];
 
 // "2" rather than "2.0" in text summaries
@@ -332,7 +356,9 @@ export function migrate(database) {
   const current = database.pragma('user_version', { simple: true });
   for (let v = current; v < MIGRATIONS.length; v++) {
     database.transaction(() => {
-      database.exec(MIGRATIONS[v]);
+      const step = MIGRATIONS[v];
+      if (typeof step === 'function') step(database);
+      else database.exec(step);
       database.pragma(`user_version = ${v + 1}`);
     })();
   }

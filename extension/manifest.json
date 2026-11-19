@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "VAE Manager – Import produit",
+  "short_name": "VAE Import",
+  "version": "1.0.0",
+  "description": "Ajoute au stock de VAE Manager le produit affiché sur le site d'un fournisseur : nom, prix, photos, référence, EAN, marque, catégorie, disponibilité.",
+  "minimum_chrome_version": "110",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Ajouter ce produit au stock",
+    "default_icon": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png" }
+  },
+  "icons": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" },
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": ["<all_urls>"]
+}

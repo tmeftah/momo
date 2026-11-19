@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VAE Manager – Import produit</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <header class="bar">
+    <button id="btn-back" class="icon-btn" type="button" title="Retour" hidden>
+      <svg viewBox="0 0 24 24"><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></svg>
+    </button>
+    <div class="bar-title">
+      <div class="headline">Import produit</div>
+      <div id="bar-sub" class="footnote secondary"></div>
+    </div>
+    <button id="btn-settings" class="icon-btn" type="button" title="Réglages">
+      <svg viewBox="0 0 24 24"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915" /><circle cx="12" cy="12" r="3" /></svg>
+    </button>
+  </header>
+
+  <!-- Connection settings -->
+  <section id="view-settings" class="view" hidden>
+    <form id="settings-form">
+      <div class="group-header">Connexion à VAE Manager</div>
+      <div class="group">
+        <label class="cell field stacked"><span class="field-label">Adresse du serveur</span><input id="cfg-server" type="url" placeholder="https://atelier.exemple.fr" required /></label>
+        <label class="cell field stacked"><span class="field-label">Clé de l'extension</span><input id="cfg-key" type="password" autocomplete="off" spellcheck="false" required /></label>
+      </div>
+      <div class="group-footer">Créez la clé dans VAE Manager : Plus › Réglages › Extension Chrome.</div>
+      <div id="settings-msg" class="msg" hidden></div>
+      <button class="btn filled block" type="submit" id="btn-save-settings">Enregistrer et tester</button>
+    </form>
+  </section>
+
+  <!-- Start: one button -->
+  <section id="view-start" class="view" hidden>
+    <div class="hero">
+      <span class="tile xl">
+        <svg viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2" /><path d="M17 3h2a2 2 0 0 1 2 2v2" /><path d="M21 17v2a2 2 0 0 1-2 2h-2" /><path d="M7 21H5a2 2 0 0 1-2-2v-2" /><path d="M7 12h10" /></svg>
+      </span>
+      <div class="hero-title">Produit de cette page</div>
+      <div class="hero-sub">Nom, prix, photos, référence, EAN, marque, catégorie et disponibilité sont lus sur la page. Vous vérifiez avant l'envoi.</div>
+    </div>
+    <div id="start-msg" class="msg" hidden></div>
+    <button id="btn-extract" class="btn filled block lg" type="button">Extraire le produit</button>
+  </section>
+
+  <!-- Review the extracted product -->
+  <section id="view-product" class="view" hidden>
+    <form id="product-form">
+      <div class="group-header" id="images-header">Photos</div>
+      <div class="group images-group">
+        <div id="images" class="images"></div>
+        <div id="images-empty" class="cell secondary" hidden>Aucune photo trouvée sur la page</div>
+      </div>
+      <div class="group-footer" id="images-footer"></div>
+
+      <div id="matches-block" hidden>
+        <div class="group-header">Déjà dans le stock ?</div>
+        <div class="group" id="matches"></div>
+        <div class="group-footer" id="matches-footer"></div>
+      </div>
+
+      <div class="group-header">Article</div>
+      <div class="group">
+        <label class="cell field stacked"><span class="field-label">Nom</span><textarea id="f-name" rows="2" required></textarea></label>
+        <label class="cell field"><span class="field-label">Marque</span><input id="f-brand" placeholder="—" /></label>
+        <label class="cell field"><span class="field-label">Référence</span><input id="f-sku" placeholder="—" /></label>
+        <label class="cell field"><span class="field-label">EAN</span><input id="f-ean" class="num" inputmode="numeric" placeholder="—" /></label>
+        <label class="cell field"><span class="field-label">Catégorie</span><select id="f-category"></select></label>
+      </div>
+      <div class="group-footer" id="category-footer"></div>
+
+      <div class="group-header">Prix</div>
+      <div class="group">
+        <div class="cell">
+          <div class="segmented" id="price-target" role="radiogroup" aria-label="Le prix du site est">
+            <button type="button" data-value="purchase" role="radio">Prix d'achat</button>
+            <button type="button" data-value="sale" role="radio">Prix de vente</button>
+          </div>
+        </div>
+        <label class="cell field"><span class="field-label" id="price-label">Prix d'achat</span><input id="f-price" class="num" type="number" step="0.001" min="0" inputmode="decimal" placeholder="0" /><span class="unit" id="price-unit"></span></label>
+        <label class="cell field" id="other-price-row"><span class="field-label" id="other-price-label">Prix de vente</span><input id="f-other-price" class="num" type="number" step="0.001" min="0" inputmode="decimal" placeholder="0" /><span class="unit" id="other-price-unit"></span></label>
+      </div>
+      <div class="group-footer" id="price-footer"></div>
+
+      <div id="stock-block">
+        <div class="group-header">Stock</div>
+        <div class="group">
+          <label class="cell field"><span class="field-label">Quantité</span><input id="f-quantity" class="num" type="number" step="any" min="0" inputmode="decimal" value="0" /></label>
+          <label class="cell field"><span class="field-label">Fournisseur</span><select id="f-supplier"></select></label>
+        </div>
+      </div>
+
+      <div class="group-header">Chez le fournisseur</div>
+      <div class="group">
+        <div class="cell"><span class="cell-title grow">Disponibilité</span><span id="availability" class="cell-value"></span></div>
+        <div class="cell"><span class="cell-title grow">Page produit</span><a id="source-link" class="cell-value link" target="_blank" rel="noopener"></a></div>
+      </div>
+
+      <div class="group-header">Description</div>
+      <div class="group">
+        <label class="cell field stacked"><textarea id="f-description" rows="5" placeholder="Aucune description trouvée"></textarea></label>
+      </div>
+      <div class="group-footer" id="sources-footer"></div>
+
+      <div class="actions">
+        <div id="send-msg" class="msg" hidden></div>
+        <button id="btn-send" class="btn filled block lg" type="submit">Ajouter au stock</button>
+        <button id="btn-reextract" class="btn plain block" type="button">
+          <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M8 16H3v5" /></svg>
+          Relire la page
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <!-- Result -->
+  <section id="view-done" class="view" hidden>
+    <div class="hero">
+      <span class="tile xl green">
+        <svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></svg>
+      </span>
+      <div class="hero-title" id="done-title"></div>
+      <div class="hero-sub" id="done-sub"></div>
+    </div>
+    <div id="done-msg" class="msg warn" hidden></div>
+    <button id="btn-open" class="btn filled block lg" type="button">
+      Ouvrir dans VAE Manager
+      <svg viewBox="0 0 24 24"><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></svg>
+    </button>
+    <button id="btn-close" class="btn plain block" type="button">Fermer</button>
+  </section>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

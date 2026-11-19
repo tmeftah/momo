@@ -17,6 +17,7 @@ const id = route.params.id;
 const form = reactive({
   name: '', category: route.query.category || null, reference: '', voltage: '', power: '',
   quantity: '', min_stock: 1, purchase_price: '', sale_price: '', location: '', notes: '', supplier_id: null,
+  brand: '', ean: '', description: '', source_url: '',
 });
 const vehicles = ref([]);
 const suppliers = ref([]);
@@ -66,6 +67,8 @@ async function save() {
         <label class="cell field stacked"><span class="field-label">Nom</span><input v-model="form.name" placeholder="ex : Chargeur 42V 2A GX16" /></label>
         <PickerRow v-model="form.category" label="Catégorie" :options="STOCK_CATEGORIES" allow-empty empty-label="Sans catégorie" />
         <label class="cell field"><span class="field-label">Référence</span><input v-model="form.reference" placeholder="—" /></label>
+        <label class="cell field"><span class="field-label">Marque</span><input v-model="form.brand" placeholder="—" /></label>
+        <label class="cell field"><span class="field-label">EAN</span><input v-model="form.ean" class="num" inputmode="numeric" placeholder="—" /></label>
         <label class="cell field"><span class="field-label">Emplacement</span><input v-model="form.location" placeholder="Étagère B2" /></label>
       </ListGroup>
 
@@ -93,6 +96,8 @@ async function save() {
 
       <ListGroup>
         <PickerRow v-model="form.supplier_id" label="Fournisseur" :options="supplierOptions" allow-empty empty-label="Aucun" />
+        <label class="cell field stacked"><span class="field-label">Lien produit</span><input v-model="form.source_url" type="url" inputmode="url" placeholder="https://…" /></label>
+        <label class="cell field stacked"><span class="field-label">Description</span><textarea v-model="form.description" rows="3" placeholder="Description du fabricant ou du fournisseur" /></label>
         <label class="cell field stacked"><span class="field-label">Notes techniques</span><textarea v-model="form.notes" placeholder="Brochage, compatibilités, remarques…" /></label>
       </ListGroup>
 

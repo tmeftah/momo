@@ -124,21 +124,38 @@ Requirements:
 - The service worker (`client/sw.template.js`) is generated at build time with the list of files to store.
 - Icons and iOS launch screens are in `client/public/`.
 
+## Chrome extension (product import)
+
+`extension/` is a Chrome extension that adds the product shown on a supplier's webshop to the stock: name, price, photos, reference (SKU), EAN, brand, category, the shop's availability and the product link. It opens a review form before anything is sent, finds items already in stock (same link, EAN or reference) and offers to update them instead.
+
+Install and connect it once (on a computer):
+1. In the app: **Plus › Réglages › Extension Chrome › Télécharger l'extension**, then unzip the file. The server builds the ZIP from `extension/` and writes its own address into it (`defaults.json`).
+2. In Chrome: `chrome://extensions` → enable **Developer mode** → **Load unpacked** → choose the unzipped folder. Pin it to the toolbar. (**Installer l'extension** in Réglages shows these steps.)
+3. In Réglages, **Connecter l'extension** creates the key (shown once). Click the extension, paste the key (the address is already filled in), then **Enregistrer et tester**.
+
+To update it, download it again, replace the folder's contents and click the reload arrow on its card in `chrome://extensions`. Bump `version` in `extension/manifest.json` when you change it, so Réglages shows which version is current.
+
+Then on any product page: click the extension → **Extraire le produit** → check the fields → **Ajouter au stock**.
+
+See `extension/README.md` for how extraction works and how to add selectors for a shop it reads badly.
+
 ## Layout
 
 ```
 server/src/
   index.js          Fastify bootstrap, auth hook, static client + SPA fallback
   db.js             SQLite schema (migrations via PRAGMA user_version) + computed views (totals, balances, credits)
-  auth.js           PIN (scrypt), sessions, brute-force lockout
+  auth.js           PIN (scrypt), sessions, brute-force lockout, extension API key
   lib/crud.js       generic list/get/create/update/delete routes
   lib/ledger.js     stock lines + payments (the stock/cash glue)
   routes/           core (clients, items, suppliers, purchases), workshop (repairs, diagnostics),
                     sales (sales, payments, dashboard, cash, planning), library (connectors, adaptations,
-                    knowledge base), files (photos), system (settings, backup/restore)
+                    knowledge base), files (photos), system (settings, backup/restore),
+                    import (Chrome extension: the only routes its API key can reach)
 client/src/
   views/            one file per screen
   components/       pickers, lines editor, payments panel, photo gallery, cell-group grid…
+extension/          Chrome extension (Manifest V3, no build step) that imports products from webshops
 ```
 
 Schema changes: **append** a new entry to `MIGRATIONS` in `server/src/db.js` and never edit an existing one. Views are rebuilt on every start.

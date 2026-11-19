@@ -1,9 +1,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Package, Minus, Plus } from 'lucide-vue-next';
+import { Package, Minus, Plus, ExternalLink } from 'lucide-vue-next';
 import { api } from '../api.js';
-import { VEHICLE } from '../constants.js';
+import { VEHICLE, SHOP_AVAILABILITY } from '../constants.js';
 import { money, fmtNum, fmtDate } from '../store.js';
 import { toast, toastError, confirmAction, haptic } from '../ui.js';
 import NavBar from '../components/NavBar.vue';
@@ -25,6 +25,15 @@ const REF_ROUTE = { sale: '/ventes/', repair: '/reparations/', purchase: '/achat
 
 const margin = computed(() => (item.value ? item.value.sale_price - item.value.purchase_price : 0));
 const marginPct = computed(() => (item.value?.purchase_price > 0 ? Math.round((margin.value / item.value.purchase_price) * 100) : null));
+// Only http(s) links are shown: the field can also be typed by hand
+const sourceHost = computed(() => {
+  try {
+    const u = new URL(item.value?.source_url);
+    return u.protocol === 'http:' || u.protocol === 'https:' ? u.hostname.replace(/^www\./, '') : '';
+  } catch {
+    return '';
+  }
+});
 const qtyColor = computed(() => (!item.value ? '' : item.value.quantity <= 0 ? 'var(--red)' : item.value.low ? 'var(--orange)' : 'var(--green)'));
 
 onMounted(async () => {
@@ -70,7 +79,7 @@ async function remove() {
       <div class="hero">
         <span class="tile xl soft"><Package :size="36" :stroke-width="1.6" /></span>
         <div class="hero-title">{{ item.name }}</div>
-        <div class="hero-sub">{{ [item.category, item.reference].filter(Boolean).join(' · ') || 'Article' }}</div>
+        <div class="hero-sub">{{ [item.brand, item.category, item.reference].filter(Boolean).join(' · ') || 'Article' }}</div>
       </div>
 
       <div class="widgets mt">
@@ -103,7 +112,14 @@ async function remove() {
         <ListRow v-if="item.location" title="Emplacement" :value="item.location" />
         <ListRow title="Prix d'achat" :value="money(item.purchase_price)" />
         <ListRow v-if="item.vehicle_types" title="Compatible" :value="item.vehicle_types.split(',').map((v) => VEHICLE[v]?.short || v).join(', ')" />
+        <ListRow v-if="item.brand" title="Marque" :value="item.brand" />
+        <ListRow v-if="item.ean" title="EAN" :value="item.ean" />
         <ListRow v-if="item.supplier_name" :to="`/fournisseurs/${item.supplier_id}`" title="Fournisseur" :value="item.supplier_name" />
+        <ListRow
+          v-if="sourceHost" :href="item.source_url" external :icon="ExternalLink" title="Page produit"
+          :subtitle="[sourceHost, SHOP_AVAILABILITY[item.source_availability]?.toLowerCase()].filter(Boolean).join(' · ')"
+        />
+        <div v-if="item.description" class="cell text-cell" style="display: block"><span class="t-label">Description</span>{{ item.description }}</div>
         <div v-if="item.notes" class="cell text-cell" style="display: block"><span class="t-label">Notes techniques</span>{{ item.notes }}</div>
       </ListGroup>
 

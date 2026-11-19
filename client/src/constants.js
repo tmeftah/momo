@@ -87,6 +87,16 @@ export const STOCK_CATEGORIES = [
   'Consommables d’atelier',
 ];
 
+// Supplier's own stock status, recorded when a product is imported from its webshop
+export const SHOP_AVAILABILITY = {
+  in_stock: 'En stock',
+  limited: 'Stock limité',
+  out_of_stock: 'Rupture de stock',
+  preorder: 'Précommande',
+  backorder: 'Sur commande',
+  discontinued: 'Plus fabriqué',
+};
+
 // "credit" = pay later: nothing collected now (or a cash advance)
 export const PAYMENT_METHODS = [
   { value: 'especes', label: 'Espèces', icon: Banknote, color: 'green' },

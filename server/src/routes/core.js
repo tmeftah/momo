@@ -2,6 +2,7 @@ import { db } from '../db.js';
 import { crud } from '../lib/crud.js';
 import { eq, flag, httpError, num } from '../lib/util.js';
 import { moveStock, getLines, addLine, removeLinesOf } from '../lib/ledger.js';
+import importRoutes from './import.js';
 
 export default async function coreRoutes(app) {
   // ---------- Clients ----------
@@ -36,10 +37,13 @@ export default async function coreRoutes(app) {
     path: '/items',
     table: 'items',
     view: 'v_items',
-    fields: ['name', 'category', 'reference', 'vehicle_types', 'voltage', 'power', 'quantity', 'min_stock', 'purchase_price', 'sale_price', 'location', 'notes', 'supplier_id'],
+    fields: [
+      'name', 'category', 'reference', 'vehicle_types', 'voltage', 'power', 'quantity', 'min_stock', 'purchase_price', 'sale_price', 'location', 'notes', 'supplier_id',
+      'brand', 'ean', 'description', 'source_url', 'source_availability',
+    ],
     required: ['name'],
     numbers: ['quantity', 'min_stock', 'purchase_price', 'sale_price'],
-    search: ['name', 'reference', 'category', 'voltage', 'location', 'notes'],
+    search: ['name', 'reference', 'category', 'voltage', 'location', 'notes', 'brand', 'ean'],
     filters: {
       category: eq('category'),
       low: flag('low'),
@@ -90,6 +94,8 @@ export default async function coreRoutes(app) {
   app.get('/items-categories', async () =>
     db().prepare('SELECT category, COUNT(*) AS n, SUM(low) AS low FROM v_items GROUP BY category ORDER BY category').all()
   );
+
+  await importRoutes(app, items);
 
   // ---------- Suppliers ----------
   const suppliers = crud(app, {

@@ -41,6 +41,8 @@ COPY --from=server-deps /app/server/node_modules ./node_modules
 COPY server/package.json ./
 COPY server/src ./src
 COPY --from=client /app/client/dist ./public
+# Chrome extension, downloadable from Réglages (served as a ZIP by the API)
+COPY extension /app/extension
 RUN mkdir -p /data && chown -R node:node /data
 USER node
 VOLUME ["/data"]

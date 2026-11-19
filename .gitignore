@@ -6,3 +6,6 @@ server/data/
 .env
 *.log
 backups/
+
+# Written into the downloadable extension by the server, never stored here
+extension/defaults.json

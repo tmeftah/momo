@@ -89,10 +89,24 @@ function sessionValid(token) {
   return !!row && row.expires_at > new Date().toISOString();
 }
 
+// API key for the Chrome extension: a single revocable key, stored hashed,
+// accepted only on the routes below (never for the rest of the API).
+const API_KEY_PREFIX = '/api/import/';
+
+function apiKeyValid(header) {
+  const m = /^Bearer\s+([A-Za-z0-9_-]{20,100})$/.exec(String(header || ''));
+  const stored = getSetting('api_key_hash');
+  if (!m || !stored) return false;
+  const a = Buffer.from(sha256(m[1]), 'hex');
+  const b = Buffer.from(stored, 'hex');
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 export function authHook(req, reply, done) {
   const url = req.url.split('?')[0];
   if (!url.startsWith('/api/') || PUBLIC_ROUTES.has(url)) return done();
   if (sessionValid(req.cookies[COOKIE])) return done();
+  if (url.startsWith(API_KEY_PREFIX) && apiKeyValid(req.headers.authorization)) return done();
   reply.code(401).send({ error: 'Non authentifié' });
 }
 
@@ -131,6 +145,22 @@ export async function authRoutes(app) {
     const token = req.cookies[COOKIE];
     if (token) db().prepare('DELETE FROM sessions WHERE token_hash = ?').run(sha256(token));
     reply.clearCookie(COOKIE, { path: '/' });
+    return { ok: true };
+  });
+
+  app.get('/auth/api-key', async () => ({ active: !!getSetting('api_key_hash'), created_at: getSetting('api_key_created_at') }));
+
+  // Creating a key replaces the previous one. The key is shown once and only its hash is kept.
+  app.post('/auth/api-key', async () => {
+    const key = crypto.randomBytes(32).toString('base64url');
+    setSetting('api_key_hash', sha256(key));
+    setSetting('api_key_created_at', db().prepare("SELECT datetime('now','localtime') AS n").get().n);
+    return { key };
+  });
+
+  app.delete('/auth/api-key', async () => {
+    setSetting('api_key_hash', null);
+    setSetting('api_key_created_at', null);
     return { ok: true };
   });
 

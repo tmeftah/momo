@@ -1,10 +1,10 @@
 <script setup>
 import { reactive, ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { KeyRound, Lock, TimerReset, Download, FileText, ArchiveRestore, Database, Moon, Smartphone, Sparkles } from 'lucide-vue-next';
+import { KeyRound, Lock, TimerReset, Download, FileText, ArchiveRestore, Database, Moon, Smartphone, Sparkles, Puzzle, Copy, FolderDown, ListOrdered } from 'lucide-vue-next';
 import { pwa, canInstall, openInstall, applyUpdate } from '../pwa.js';
 import { api, session } from '../api.js';
-import { settings } from '../store.js';
+import { settings, fmtDate } from '../store.js';
 import { toast, toastError, confirmAction, theme, setTheme } from '../ui.js';
 import NavBar from '../components/NavBar.vue';
 import ListGroup from '../components/ListGroup.vue';
@@ -26,6 +26,8 @@ onMounted(async () => {
   try {
     Object.assign(form, await api.get('/settings'));
     autoBackups.value = await api.get('/backup/auto');
+    Object.assign(apiKey, await api.get('/auth/api-key'));
+    Object.assign(extension, await api.get('/extension/info'));
   } catch (e) {
     toastError(e);
   }
@@ -100,6 +102,51 @@ async function restore(e) {
   }
 }
 
+const apiKey = reactive({ active: false, created_at: null });
+const newKey = ref('');
+const origin = window.location.origin;
+
+async function createKey() {
+  if (apiKey.active && !(await confirmAction("L'extension devra être reconnectée avec la nouvelle clé.", { title: 'Remplacer la clé ?', confirm: 'Générer' }))) return;
+  try {
+    newKey.value = (await api.post('/auth/api-key')).key;
+    Object.assign(apiKey, await api.get('/auth/api-key'));
+  } catch (e) {
+    toastError(e);
+  }
+}
+
+async function revokeKey() {
+  if (!(await confirmAction("L'extension ne pourra plus ajouter d'articles.", { title: 'Révoquer la clé ?', confirm: 'Révoquer' }))) return;
+  try {
+    await api.del('/auth/api-key');
+    Object.assign(apiKey, { active: false, created_at: null });
+    toast('Clé révoquée');
+  } catch (e) {
+    toastError(e);
+  }
+}
+
+const extension = reactive({ available: false, version: null });
+const installSheet = ref(false);
+const INSTALL_STEPS = [
+  'Téléchargez l’extension, puis décompressez le fichier .zip.',
+  'Dans Chrome, ouvrez chrome://extensions (Edge : edge://extensions) et activez le mode développeur.',
+  'Cliquez sur « Charger l’extension non empaquetée » et choisissez le dossier décompressé.',
+  'Épinglez l’extension dans la barre d’outils, ouvrez-la et collez la clé créée ici.',
+];
+
+async function copyText(text, done) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast(done);
+  } catch {
+    toastError(new Error('Copie impossible : sélectionnez le texte à la main'));
+  }
+}
+
+const copyKey = () => copyText(newKey.value, 'Clé copiée');
+
 const build = __BUILD_DATE__;
 const kb = (b) => (b > 1048576 ? `${(b / 1048576).toFixed(1)} Mo` : `${Math.round(b / 1024)} Ko`);
 </script>
@@ -150,6 +197,19 @@ const kb = (b) => (b > 1048576 ? `${(b / 1048576).toFixed(1)} Mo` : `${Math.roun
       <ListRow :icon="Lock" tile="accent" title="Verrouiller maintenant" @click="lock" />
     </ListGroup>
 
+    <ListGroup header="Extension Chrome" footer="L'extension ajoute au stock les produits trouvés sur les sites des fournisseurs. Sa clé ne donne accès qu'à l'ajout d'articles.">
+      <template v-if="extension.available">
+        <ListRow href="/api/extension/download.zip" :icon="FolderDown" tile="accent" title="Télécharger l'extension" :subtitle="`Version ${extension.version} · Chrome, Edge, Brave`" download />
+        <ListRow :icon="ListOrdered" tile="accent" title="Installer l'extension" chevron @click="installSheet = true" />
+      </template>
+      <template v-if="apiKey.active">
+        <ListRow :icon="Puzzle" tile="accent" title="Clé de l'extension" :value="`Créée le ${fmtDate(apiKey.created_at)}`" />
+        <ListRow :icon="KeyRound" tile="accent" title="Générer une nouvelle clé" subtitle="L'ancienne clé cesse de fonctionner" @click="createKey" />
+        <ListRow title="Révoquer la clé" destructive @click="revokeKey" />
+      </template>
+      <ListRow v-else :icon="Puzzle" tile="accent" title="Connecter l'extension" subtitle="Crée une clé à coller dans l'extension" chevron @click="createKey" />
+    </ListGroup>
+
     <ListGroup header="Sauvegarde" footer="Téléchargez régulièrement une sauvegarde complète et gardez-la hors du serveur.">
       <ListRow href="/api/backup/export.zip" :icon="Download" tile="accent" title="Sauvegarde complète" subtitle="Données + photos (.zip)" download />
       <ListRow href="/api/backup/export.json" :icon="FileText" tile="accent" title="Exporter les données" subtitle="Format JSON lisible" download />
@@ -160,6 +220,24 @@ const kb = (b) => (b > 1048576 ? `${(b / 1048576).toFixed(1)} Mo` : `${Math.roun
     <ListGroup v-if="autoBackups.length" header="Copies automatiques quotidiennes">
       <ListRow v-for="b in autoBackups" :key="b.name" :href="`/api/backup/auto/${b.name}`" :icon="Database" tile="accent" :title="b.name.replace('vae-', '').replace('.db', '')" :value="kb(b.size)" download />
     </ListGroup>
+
+    <BottomSheet :open="!!newKey" title="Clé de l'extension" :cancel="null" action="OK" @close="newKey = ''" @action="newKey = ''">
+      <ListGroup footer="Collez la clé dans l'extension. Si l'extension a été téléchargée ici, l'adresse y est déjà remplie. La clé ne sera plus affichée ensuite.">
+        <div class="cell text-cell" style="display: block"><span class="t-label">Adresse du serveur</span><span class="mono">{{ origin }}</span></div>
+        <div class="cell text-cell" style="display: block"><span class="t-label">Clé</span><span class="mono">{{ newKey }}</span></div>
+        <ListRow :icon="Copy" tile="accent" title="Copier la clé" @click="copyKey" />
+      </ListGroup>
+    </BottomSheet>
+
+    <BottomSheet :open="installSheet" title="Installer l'extension" :cancel="null" action="OK" @close="installSheet = false" @action="installSheet = false">
+      <ListGroup footer="Sur ordinateur uniquement. Chrome peut signaler une extension en mode développeur au démarrage : c'est normal pour une extension installée hors du Chrome Web Store.">
+        <div v-for="(step, i) in INSTALL_STEPS" :key="i" class="cell has-tile">
+          <span class="tile soft num">{{ i + 1 }}</span>
+          <div class="cell-main"><div class="cell-title wrap">{{ step }}</div></div>
+        </div>
+        <ListRow :icon="Copy" tile="accent" title="Copier « chrome://extensions »" subtitle="Les navigateurs n'ouvrent pas cette adresse depuis un lien" wrap @click="copyText('chrome://extensions', 'Adresse copiée')" />
+      </ListGroup>
+    </BottomSheet>
 
     <BottomSheet :open="pinSheet" title="Code PIN" action="OK" :action-disabled="!pins.current || pins.pin.length < 4" @close="pinSheet = false" @action="changePin">
       <ListGroup footer="4 à 12 chiffres. Les autres appareils seront déconnectés.">

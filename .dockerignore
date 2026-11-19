@@ -10,3 +10,4 @@ backups
 *.md
 Makefile
 docker-compose*.yml
+!extension/README.md

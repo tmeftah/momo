@@ -11,7 +11,7 @@ const PRECACHE = __PRECACHE__;
 const SHELL = `vae-shell-${VERSION}`;
 const DATA = 'vae-data';
 const PHOTOS = 'vae-photos';
-const NO_CACHE_API = ['/api/backup/', '/api/auth/login', '/api/auth/setup'];
+const NO_CACHE_API = ['/api/backup/', '/api/auth/login', '/api/auth/setup', '/api/extension/download.zip'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(

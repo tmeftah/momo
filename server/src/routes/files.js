@@ -4,10 +4,9 @@ import crypto from 'node:crypto';
 import { db } from '../db.js';
 import { config } from '../config.js';
 import { httpError, PHOTO_REFS } from '../lib/util.js';
-import { FILE_RE, unlinkFiles } from '../lib/photos.js';
-import { compressPhoto, cropPhoto } from '../lib/image.js';
+import { FILE_RE, unlinkFiles, storeUploadedPhoto } from '../lib/photos.js';
+import { cropPhoto } from '../lib/image.js';
 
-const ACCEPTED = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif']);
 const MIME = { jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif' };
 
 export default async function fileRoutes(app) {
@@ -21,35 +20,10 @@ export default async function fileRoutes(app) {
     const refType = String(req.query.ref_type || '');
     const refId = Number(req.query.ref_id);
     if (!PHOTO_REFS.includes(refType) || !refId) throw httpError(400, 'Référence photo invalide');
-    const file = await req.file();
-    if (!file) throw httpError(400, 'Aucun fichier reçu');
-    if (!ACCEPTED.has(file.mimetype)) {
-      file.file.resume();
-      throw httpError(415, 'Format non supporté (JPEG, PNG, WebP ou GIF)');
-    }
-    let raw;
-    try {
-      raw = await file.toBuffer();
-    } catch (err) {
-      if (err.code === 'FST_REQ_FILE_TOO_LARGE') throw httpError(413, `Photo trop lourde (max ${config.maxUploadMb} Mo)`);
-      throw err;
-    }
-    let photo;
-    try {
-      photo = await compressPhoto(raw);
-    } catch (err) {
-      req.log.warn({ err: err.message }, 'Photo illisible');
-      throw httpError(415, 'Image illisible ou corrompue');
-    }
-    const filename = `${crypto.randomUUID()}.${photo.ext}`;
-    await fs.promises.writeFile(path.join(config.uploadsDir, filename), photo.buffer);
-    req.log.info({ in: raw.length, out: photo.buffer.length }, 'Photo enregistrée');
-    const tag = req.query.tag ? String(req.query.tag).slice(0, 40) : null;
-    const caption = req.query.caption ? String(req.query.caption).slice(0, 200) : null;
-    const info = db()
-      .prepare('INSERT INTO photos (ref_type, ref_id, filename, tag, caption) VALUES (?, ?, ?, ?, ?)')
-      .run(refType, refId, filename, tag, caption);
-    return db().prepare('SELECT * FROM photos WHERE id = ?').get(info.lastInsertRowid);
+    return storeUploadedPhoto(req, refType, refId, {
+      tag: req.query.tag ? String(req.query.tag).slice(0, 40) : null,
+      caption: req.query.caption ? String(req.query.caption).slice(0, 200) : null,
+    });
   });
 
   app.put('/photos/:id', async (req) => {
